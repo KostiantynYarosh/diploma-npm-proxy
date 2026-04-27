@@ -1,0 +1,42 @@
+services:
+  proxy:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - PROXY_CACHE_REDIS_ADDR=redis:6379
+      - PROXY_SIEM_SYSLOG_ADDR=syslog-ng:514
+    volumes:
+      - ../configs:/app/configs:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+      syslog-ng:
+        condition: service_started
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --save "" --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  syslog-ng:
+    image: balabit/syslog-ng:latest
+    ports:
+      - "514:514/tcp"
+      - "601:601/tcp"
+    volumes:
+      - ./syslog-ng.conf:/etc/syslog-ng/syslog-ng.conf:ro
+      - syslog-logs:/var/log/syslog-ng
+    restart: unless-stopped
+
+volumes:
+  syslog-logs:

@@ -1,0 +1,34 @@
+# Compiled binaries
+npm-proxy
+npm-proxy.exe
+gen-top10k
+gen-top10k.exe
+/cmd/proxy/proxy
+/cmd/gen-top10k/gen-top10k
+
+# Go test/coverage artifacts
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# Manual testing artifacts
+*.tgz
+npm-test/
+node_modules/
+package-lock.json
+
+# Local config overrides
+.env
+.env.local
+configs/*.local.yaml
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db

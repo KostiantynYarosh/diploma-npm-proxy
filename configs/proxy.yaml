@@ -1,0 +1,101 @@
+proxy:
+  listen_addr: ":8080"
+  upstream_url: "https://registry.npmjs.org"
+  max_tarball_bytes: 52428800   # 50 MB
+  analysis_timeout_sec: 15
+
+registry:
+  connect_timeout_sec: 10
+  total_timeout_sec: 30
+  max_retries: 2
+
+cache:
+  redis_addr: "redis:6379"
+  redis_password: ""
+  redis_db: 0
+  verdict_ttl_hours: 24
+  osv_ttl_hours: 1
+
+extractor:
+  max_files: 10000
+  max_file_bytes: 5242880       # 5 MB
+  max_total_bytes: 104857600    # 100 MB
+
+# Layer 1 - metadata & external signals
+layer1:
+  osv_api_url: "https://api.osv.dev/v1/query"
+  osv_timeout_sec: 5
+  metadata_net_timeout_sec: 3       # bound npm downloads/user API fetches per-call
+  top10k_path: "configs/top10k.txt"
+  typosquat_close_distance: 1
+  typosquat_close_score: 0.55
+  typosquat_warn_distance: 2
+  typosquat_warn_score: 0.30
+  typosquat_ascii_homoglyph_score: 0.65  # strong signal, not veto - lets policy engine combine with other signals
+  metadata_new_package_days: 7
+  metadata_new_package_score: 0.20
+  metadata_young_maintainer_days: 30
+  metadata_young_maintainer_score: 0.25      # strong: account < 30 days publishing a package is unusual
+  metadata_low_downloads_threshold: 100      # monthly downloads below this flag
+  metadata_low_downloads_score: 0.05
+  metadata_popular_threshold: 100000         # monthly downloads above which staleness becomes a risk
+  metadata_popular_stale_days: 365           # no publishes for > 1 year
+  metadata_popular_stale_score: 0.15
+  anomaly_max_versions_per_day: 5
+  anomaly_version_spike_score: 0.20
+  anomaly_maintainer_change_score: 0.30
+  anomaly_unusual_hours_score: 0.10
+  anomaly_size_deviation_score: 0.15
+  license_patch_change_score: 0.15
+  license_missing_popular_score: 0.10
+  license_popular_downloads: 10000
+
+# Layer 2 - manifest & archive
+layer2:
+  install_script_present_score: 0.20         # any non-empty install script (no other red flags)
+  install_script_base64_score: 0.35          # base64 -d in a script body
+  install_script_child_process_score: 0.20   # require('child_process') / direct child_process ref
+  install_script_eval_score: 0.15            # eval(...) call
+  install_script_node_eval_score: 0.15       # node -e "..." inline execution
+  install_script_dynamic_require_score: 0.10 # require(<non-string-literal>) - dynamic resolution
+  install_script_external_url_score: 0.08    # any http(s):// URL appearing in a script body
+
+# Layer 3 - static code analysis
+layer3:
+  entropy_threshold: 4.5
+  entropy_ratio_threshold: 0.20
+  entropy_min_string_len: 64                 # min length for entropy/base64 candidacy of a string literal
+  entropy_hex_min_len: 64                    # min run of hex chars to be flagged as a packed payload
+  capability_net_score: 0.15
+  capability_exec_score: 0.30
+  capability_fs_sensitive_score: 0.25
+  capability_dynamic_eval_score: 0.20
+  capability_env_read_score: 0.10
+  version_diff_script_added_score: 0.40
+  version_diff_script_changed_score: 0.25
+  version_diff_cap_exec_score: 0.35
+  version_diff_cap_net_score: 0.25
+  version_diff_new_dep_score: 0.10           # per-new-dep score in a patch bump
+  version_diff_new_dep_cap: 0.35             # cap on aggregate new-dep score for one signal
+  sink_alone_score: 0.20
+
+# Policy engine
+policy:
+  allow_threshold: 0.30
+  block_threshold: 0.70
+
+# Post-factum recheck worker - rescans cached warn verdicts to catch newly
+# published OSV advisories and refreshed top-N typosquat data.
+recheck:
+  enabled: true
+  interval_hours: 6
+  batch_size: 500
+  warn_only: true
+
+siem:
+  mode: "syslog"           # "syslog" | "webhook" | "both"
+  syslog_addr: "syslog-ng:514"
+  syslog_network: "tcp"
+  webhook_url: ""
+  webhook_hmac_secret: ""
+  buffer_size: 256
