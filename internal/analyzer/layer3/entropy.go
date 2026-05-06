@@ -48,11 +48,21 @@ func NewEntropyAnalyzer(opts EntropyOptions) *EntropyAnalyzer {
 
 // Analyze scans all JS files for obfuscation signals.
 // Returns signals and a bool indicating whether obfuscation was detected.
+//
+// Pre-built bundles in dist/, build/, lib/, and *.min.js / *.bundle.js are
+// excluded from the entropy scan: minification legitimately produces high
+// Shannon entropy (collapsed whitespace, mangled identifiers) that is
+// indistinguishable from obfuscation by this signal alone. Other detectors
+// (sinks, capabilities, install_script) still scan those files - this skip
+// only quiets the entropy heuristic, not the rest of the pipeline.
 func (e *EntropyAnalyzer) Analyze(_ context.Context, tree extractor.FileTree) ([]signal.Signal, bool) {
 	var totalStrings, highEntropyCount int
 
 	for path, content := range tree {
 		if !isJSFile(path) {
+			continue
+		}
+		if isLikelyBundle(path) {
 			continue
 		}
 		src := string(content)
@@ -116,6 +126,33 @@ func (e *EntropyAnalyzer) scanFileEntropy(src string) (total, high int) {
 	}
 
 	return total, high
+}
+
+// isLikelyBundle reports whether a path is a pre-built distribution artefact
+// (minified or otherwise transformed) that legitimately exhibits high
+// entropy. The list is npm-flavoured: dist/, build/, out/, lib/ are the
+// canonical "shipped output" directories; the suffixes cover the common
+// minified/UMD/ESM/CJS bundle naming conventions. We deliberately don't skip
+// node_modules/ because npm tarballs never ship that.
+func isLikelyBundle(path string) bool {
+	lower := strings.ToLower(path)
+	for _, prefix := range []string{
+		"package/dist/", "package/build/", "package/out/", "package/lib/",
+		"dist/", "build/", "out/", "lib/",
+	} {
+		if strings.HasPrefix(lower, prefix) {
+			return true
+		}
+	}
+	for _, suffix := range []string{
+		".min.js", ".bundle.js", ".prod.js",
+		".umd.js", ".cjs.js", ".esm.js", ".iife.js",
+	} {
+		if strings.HasSuffix(lower, suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 func shannonEntropy(s string) float64 {

@@ -24,11 +24,41 @@ type VersionMeta struct {
 	Version         string            `json:"version"`
 	Description     string            `json:"description"`
 	Scripts         map[string]string `json:"scripts"`
-	License         string            `json:"license"`
+	License         License           `json:"license"`
 	Dist            DistInfo          `json:"dist"`
 	Dependencies    map[string]string `json:"dependencies"`
 	DevDependencies map[string]string `json:"devDependencies"`
 	Maintainers     []Maintainer      `json:"maintainers"`
+}
+
+// License accepts both the modern SPDX-string form ("MIT") and the legacy
+// object form ({"type": "MIT", "url": "..."}) that pre-2016 npm packages
+// still expose. A few seed entries (semver 5.x, minimatch 3.0.4) only ship
+// the legacy form, so a strict string field would drop them from the corpus.
+type License string
+
+func (l *License) UnmarshalJSON(data []byte) error {
+	if len(data) > 0 && data[0] == '"' {
+		var s string
+		if err := json.Unmarshal(data, &s); err != nil {
+			return err
+		}
+		*l = License(s)
+		return nil
+	}
+	if len(data) > 0 && data[0] == '{' {
+		var obj struct {
+			Type string `json:"type"`
+		}
+		if err := json.Unmarshal(data, &obj); err != nil {
+			return err
+		}
+		*l = License(obj.Type)
+		return nil
+	}
+	// Arrays, null, or anything else: treat as empty.
+	*l = ""
+	return nil
 }
 
 // PackageMeta is a subset of the top-level npm metadata document.

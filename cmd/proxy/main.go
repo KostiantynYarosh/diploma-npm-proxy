@@ -116,7 +116,7 @@ func main() {
 	engine := analyzer.NewPostDownloadEngine(cfg, regClient)
 
 	// Policy engine
-	policyEngine := policy.NewEngine(cfg.Policy.AllowThreshold, cfg.Policy.BlockThreshold)
+	policyEngine := policy.NewEngine(cfg.Policy.AllowThreshold, cfg.Policy.BlockThreshold, cfg.Policy.MinCategories)
 
 	// HTTP handler
 	handler := proxy.NewHandler(

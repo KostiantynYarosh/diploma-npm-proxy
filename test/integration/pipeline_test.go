@@ -62,7 +62,7 @@ func newEntropy() *layer3.EntropyAnalyzer {
 	})
 }
 
-func newSinks() *layer3.SinkAnalyzer { return layer3.NewSinkAnalyzer(0.20) }
+func newSinks() *layer3.SinkAnalyzer { return layer3.NewSinkAnalyzer(0.20, 0.55) }
 
 func newVersionDiff() *layer3.VersionDiffAnalyzer {
 	return layer3.NewVersionDiffAnalyzer(layer3.VersionDiffOptions{
@@ -176,7 +176,10 @@ func decideForFixture(t *testing.T, fixtureDir string) policy.Decision {
 	}
 
 	result := runPostDownload(t, tree)
-	return policy.NewEngine(allowThreshold, blockThreshold).Decide(result)
+	// minCategories=0 → tests bypass the multi-category gate so a single
+	// detector firing in a fixture (e.g. install-script-only) still yields
+	// the expected warn/block. Production reads the gate from config.
+	return policy.NewEngine(allowThreshold, blockThreshold, 0).Decide(result)
 }
 
 func TestPipeline_CleanPackageAllows(t *testing.T) {
@@ -197,16 +200,18 @@ func TestPipeline_MaliciousInstallScriptVetoes(t *testing.T) {
 	}
 }
 
-func TestPipeline_ObfuscatedEvalVetoes(t *testing.T) {
+func TestPipeline_ObfuscatedEvalSurfacesAtLeastWarn(t *testing.T) {
 	// The obfuscated-eval fixture combines a base64-decoded payload (high
-	// entropy + base64 detection) with eval(): policy spec mandates a veto
-	// on sink + obfuscation.
+	// entropy + base64 detection) with eval(). Sink+obfuscation used to be
+	// a hard veto, but minified popular bundles legitimately match the same
+	// pattern, so it is now a heavy scored signal. We assert the policy
+	// engine still surfaces it (warn or block), not a specific verdict.
 	d := decideForFixture(t, "../fixtures/obfuscated-eval")
-	if d.Verdict != policy.VerdictBlock {
-		t.Fatalf("expected BLOCK for obfuscated-eval, got %s (score=%.2f rules=%v)", d.Verdict, d.Score, d.TriggeredRules)
+	if d.Verdict == policy.VerdictAllow {
+		t.Fatalf("expected WARN or BLOCK for obfuscated-eval, got ALLOW (score=%.2f rules=%v)", d.Score, d.TriggeredRules)
 	}
-	if !containsRulePrefix(d.TriggeredRules, "sink_eval_with_obfuscation") {
-		t.Errorf("expected sink+obfuscation veto, got %v", d.TriggeredRules)
+	if !containsRulePrefix(d.TriggeredRules, "sink_with_obfuscation") {
+		t.Errorf("expected sink_with_obfuscation among triggered rules, got %v", d.TriggeredRules)
 	}
 }
 
@@ -251,7 +256,7 @@ func TestPipeline_NewExecInPatchTriggersVersionDiff(t *testing.T) {
 		result.Add(s)
 	}
 
-	d := policy.NewEngine(allowThreshold, blockThreshold).Decide(result)
+	d := policy.NewEngine(allowThreshold, blockThreshold, 0).Decide(result)
 	// The fixture has child_process exec → capability_exec (0.30) plus
 	// version_diff_new_exec_in_patch (0.35) → score ≥ 0.65, comfortably above
 	// the WARN threshold and at or above BLOCK depending on tuning.

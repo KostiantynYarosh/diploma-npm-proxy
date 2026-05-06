@@ -18,15 +18,21 @@ var (
 )
 
 type SinkAnalyzer struct {
-	aloneScore float64
+	aloneScore        float64
+	obfuscationScore  float64
 }
 
-func NewSinkAnalyzer(aloneScore float64) *SinkAnalyzer {
-	return &SinkAnalyzer{aloneScore: aloneScore}
+func NewSinkAnalyzer(aloneScore, obfuscationScore float64) *SinkAnalyzer {
+	return &SinkAnalyzer{aloneScore: aloneScore, obfuscationScore: obfuscationScore}
 }
 
-// Analyze finds dangerous sink calls. If a sink is found together with an obfuscation
-// signal (hasObfuscation=true), it returns a veto. Alone, it contributes a score.
+// Analyze finds dangerous sink calls and reports them as scored signals. A
+// sink found alongside an obfuscation signal earns the heavier
+// obfuscationScore but is no longer an automatic veto - many minified popular
+// bundles (e.g. dhtmlx-gantt, loginradius-sdk) legitimately combine high
+// entropy with eval/new Function shims, and a hard veto on that pattern
+// would block them on every install. The policy engine still aggregates the
+// score and may block via the normal threshold path.
 func (s *SinkAnalyzer) Analyze(_ context.Context, tree extractor.FileTree, hasObfuscation bool) []signal.Signal {
 	patterns := []struct {
 		re   *regexp.Regexp
@@ -41,6 +47,11 @@ func (s *SinkAnalyzer) Analyze(_ context.Context, tree extractor.FileTree, hasOb
 
 	var signals []signal.Signal
 
+	// When obfuscation is detected we collapse all sink hits into a single
+	// "sink_with_obfuscation" rule (Detail carries the specific sink type)
+	// so the calibrator has one weight to tune instead of five identical
+	// ones. Without obfuscation we keep per-sink rule names because they
+	// rarely co-occur and the granularity is useful in reports.
 	for path, content := range tree {
 		if !isJSFile(path) {
 			continue
@@ -51,12 +62,15 @@ func (s *SinkAnalyzer) Analyze(_ context.Context, tree extractor.FileTree, hasOb
 				continue
 			}
 			if hasObfuscation {
-				// Sink + obfuscation = veto.
-				return []signal.Signal{{
-					Rule: p.rule + "_with_obfuscation",
-					Veto: true,
-					CWE:  "CWE-94",
-				}}
+				signals = appendIfNotPresent(signals, signal.Signal{
+					Rule:   "sink_with_obfuscation",
+					Score:  s.obfuscationScore,
+					CWE:    "CWE-94",
+					Detail: p.rule,
+				})
+				// One sink + obf signal is enough; don't keep adding
+				// per-sink dupes for the same package.
+				continue
 			}
 			signals = appendIfNotPresent(signals, signal.Signal{
 				Rule:  p.rule,

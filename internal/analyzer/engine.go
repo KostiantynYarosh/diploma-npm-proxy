@@ -53,7 +53,7 @@ func NewPostDownloadEngine(cfg *config.Config, regClient *registry.Client) *Post
 			NewDepScore:        cfg.Layer3.VersionDiffNewDepScore,
 			NewDepCap:          cfg.Layer3.VersionDiffNewDepCap,
 		}),
-		sinks: layer3.NewSinkAnalyzer(cfg.Layer3.SinkAloneScore),
+		sinks: layer3.NewSinkAnalyzer(cfg.Layer3.SinkAloneScore, cfg.Layer3.SinkObfuscationScore),
 		entropy: layer3.NewEntropyAnalyzer(layer3.EntropyOptions{
 			Threshold:      cfg.Layer3.EntropyThreshold,
 			RatioThreshold: cfg.Layer3.EntropyRatioThreshold,

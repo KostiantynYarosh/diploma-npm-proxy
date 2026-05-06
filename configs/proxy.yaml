@@ -78,11 +78,20 @@ layer3:
   version_diff_new_dep_score: 0.10           # per-new-dep score in a patch bump
   version_diff_new_dep_cap: 0.35             # cap on aggregate new-dep score for one signal
   sink_alone_score: 0.20
+  sink_obfuscation_score: 0.55         # sink (eval/new Function/dynamic require) + high-entropy file in same package
+
+# Cross-layer combination signals
+combo:
+  typosquat_with_install_script_score: 0.20  # typo/homoglyph plus lifecycle script
+  install_script_with_exec_score: 0.20       # lifecycle script plus child_process/node -e/exec capability
+  install_script_with_network_score: 0.15    # lifecycle script plus network capability or external URL
+  install_script_with_obfuscation_score: 0.20 # lifecycle script plus high entropy or obfuscated sink
 
 # Policy engine
 policy:
   allow_threshold: 0.30
   block_threshold: 0.70
+  min_categories: 2     # warn/block requires firing in this many distinct rule categories; 0/1 disables gating
 
 # Post-factum recheck worker - rescans cached warn verdicts to catch newly
 # published OSV advisories and refreshed top-N typosquat data.

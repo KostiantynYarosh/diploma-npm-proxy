@@ -36,6 +36,7 @@ type Handler struct {
 	cacheClient    *cache.Client
 	siemEmitter    siem.Emitter
 	engine         *analyzer.PostDownloadEngine
+	comboScores    analyzer.ComboScores
 	policyEngine   *policy.Engine
 	osvChecker     *layer1.OSVChecker
 	typosquat      *layer1.TyposquatChecker
@@ -72,6 +73,7 @@ func NewHandler(
 		cacheClient:    cacheClient,
 		siemEmitter:    siemEmitter,
 		engine:         engine,
+		comboScores:    analyzer.ComboScoresFromConfig(cfg),
 		policyEngine:   policyEngine,
 		osvChecker:     osv,
 		typosquat:      typo,
@@ -269,6 +271,7 @@ func (h *Handler) handleTarball(w http.ResponseWriter, r *http.Request, name, so
 	for _, s := range postResult.Signals {
 		finalResult.Add(s)
 	}
+	analyzer.AddComboSignals(finalResult, h.comboScores)
 
 	decision := h.policyEngine.Decide(finalResult)
 	durationMs := time.Since(start).Milliseconds()

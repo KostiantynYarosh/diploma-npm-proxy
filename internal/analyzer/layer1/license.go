@@ -32,7 +32,7 @@ func (l *LicenseChecker) Check(_ context.Context, meta *registry.PackageMeta, ve
 	}
 
 	// Missing license field in current version.
-	if strings.TrimSpace(current.License) == "" {
+	if strings.TrimSpace(string(current.License)) == "" {
 		signals = append(signals, signal.Signal{
 			Rule:  "license_missing",
 			Score: l.missingPopScore,
