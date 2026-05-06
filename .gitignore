@@ -1,23 +1,9 @@
-# Compiled binaries
-npm-proxy
-npm-proxy.exe
-gen-top10k
-gen-top10k.exe
-calibrate
-calibrate.exe
-import-benign
-import-benign.exe
-/cmd/proxy/proxy
-/tools/gen-top10k/gen-top10k
-/tools/calibrate/calibrate
-/tools/import-benign/import-benign
-/tools/import-datadog/import-datadog
-
 # Go test/coverage artifacts
 *.test
 *.out
 coverage.txt
 coverage.html
+.exe
 
 # Manual testing artifacts
 *.tgz
