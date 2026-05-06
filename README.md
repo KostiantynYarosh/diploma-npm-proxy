@@ -64,7 +64,7 @@
 | 3 | [layer3/capabilities.go](internal/analyzer/layer3/capabilities.go) | `cap_env_read` | 0.10 | ні | CWE-200 | читання змінних оточення (`process.env`) |
 | 3 | [layer3/entropy.go](internal/analyzer/layer3/entropy.go) | `entropy_obfuscation` | 0.30 | ні | CWE-506 | Shannon entropy > порогу або base64/hex ratio |
 | 3 | [layer3/sinks.go](internal/analyzer/layer3/sinks.go) | `sink_eval` / `sink_new_function` / `sink_vm_run` / `sink_dynamic_require` | 0.20 | ні | CWE-95 | небезпечні sink-функції без ознак обфускації |
-| 3 | [layer3/sinks.go](internal/analyzer/layer3/sinks.go) | `sink_with_obfuscation` | 0.55 | ні | CWE-95 | sink + висока ентропія в одному пакеті (важче за sink_alone, але не veto — мініфіковані bundle-и легально матчать патерн) |
+| 3 | [layer3/sinks.go](internal/analyzer/layer3/sinks.go) | `sink_with_obfuscation` | 0.55 | ні | CWE-95 | sink + висока ентропія в одному пакеті (важче за sink_alone, але не veto - мініфіковані bundle-и легально матчать патерн) |
 | 3 | [layer3/version_diff.go](internal/analyzer/layer3/version_diff.go) | `version_diff_new_exec_in_patch` | 0.35 | ні | CWE-78 | поява `child_process` у patch-релізі |
 | 3 | [layer3/version_diff.go](internal/analyzer/layer3/version_diff.go) | `version_diff_new_net_in_patch` | 0.25 | ні | CWE-918 | поява мережевих викликів у patch-релізі |
 | 3 | [layer3/version_diff.go](internal/analyzer/layer3/version_diff.go) | `version_diff_new_deps_in_patch` | 0.20 | ні | CWE-829 | нові `dependencies` у patch-релізі |
@@ -222,8 +222,8 @@ internal/calibrate     # ядро: метрики (2×3 матриця), кеш�
 ### 1. Зібрати корпус
 
 Корпус двочастинний:
-- **`dataset/benign/`** — топ-N популярних npm-пакетів, для виміру false-positive rate.
-- **`dataset/malicious/`** — реальна малварь з DataDog dataset.
+- **`dataset/benign/`** - топ-N популярних npm-пакетів, для виміру false-positive rate.
+- **`dataset/malicious/`** - реальна малварь з DataDog dataset.
 
 ```bash
 # Negative class (FP-тестування)
@@ -232,7 +232,7 @@ go run ./tools/import-benign -top 10000 -concurrency 3
 
 `import-benign` читає список з `configs/top10k.txt`. Якщо файла немає або в ньому менше пакетів, ніж просить `-top`, тул сам запускає `tools/gen-top10k` і генерує список перед імпортом. На `429`/`5xx` від npm registry є retry/backoff; якщо registry все одно душить запити, зменши `-concurrency` до 1.
 
-Після завершення `dataset/benign/` має `<name>@<version>.tgz`, `<name>.meta.json`, `labels.jsonl` (категорія `popular`). `labels.jsonl` — це manifest корпусу, а не ручний список: він фіксує `name`, `version`, шляхи до tarball/meta, `category`, OSV/prev_version для malicious-зразків і робить калібрацію відтворюваною. Калібратор читає саме manifest, а не просто всі `.tgz` у директорії.
+Після завершення `dataset/benign/` має `<name>@<version>.tgz`, `<name>.meta.json`, `labels.jsonl` (категорія `popular`). `labels.jsonl` - це manifest корпусу, а не ручний список: він фіксує `name`, `version`, шляхи до tarball/meta, `category`, OSV/prev_version для malicious-зразків і робить калібрацію відтворюваною. Калібратор читає саме manifest, а не просто всі `.tgz` у директорії.
 
 #### Додати справжню малварь з DataDog dataset
 
@@ -247,13 +247,13 @@ git sparse-checkout set samples/npm
 git checkout main
 cd ..
 
-# 2. Імпортувати — тул дешифрує zip-и, розпаковує/перепаковує в npm-tarball,
+# 2. Імпортувати - тул дешифрує zip-и, розпаковує/перепаковує в npm-tarball,
 #    хешує для дедуплу і дописує в dataset/malicious/labels.jsonl з відповідною
 #    категорією (compromised_lib | malicious_intent).
 go run ./tools/import-datadog -src ./malicious-software-packages-dataset
 ```
 
-Запускай лише в ізольованому середовищі — навіть без виконання, наявність активної малварі на диску може тригерити антивіруси. Тул не запускає жоден файл; лише декомпресує і пише `.tgz` на диск.
+Запускай лише в ізольованому середовищі - навіть без виконання, наявність активної малварі на диску може тригерити антивіруси. Тул не запускає жоден файл; лише декомпресує і пише `.tgz` на диск.
 
 ### 2. Запустити калібрацію
 
@@ -261,24 +261,24 @@ go run ./tools/import-datadog -src ./malicious-software-packages-dataset
 go run ./tools/calibrate -workers 16 -trials 3000 -max-hard-fp 0.001 -max-soft-fp 0.05
 ```
 
-Шляхи до конфігу/корпусу/звіту фіксовані (`configs/proxy.yaml` → `configs/proxy.calibrated.yaml` + `calibration-report.csv`, корпус у `dataset/`). Зміна паттерну — у константах [tools/calibrate/main.go](tools/calibrate/main.go).
+Шляхи до конфігу/корпусу/звіту фіксовані (`configs/proxy.yaml` → `configs/proxy.calibrated.yaml` + `calibration-report.csv`, корпус у `dataset/`). Зміна паттерну - у константах [tools/calibrate/main.go](tools/calibrate/main.go).
 
 Два жорсткі cap-и:
-- **`-max-hard-fp`** — стеля benign-block rate. False-block = непрацюючий `npm install`, тому production-профіль тримає її біля нуля (`0.001` або жорсткіше).
-- **`-max-soft-fp`** — стеля benign-warn rate. Якщо warn з'являється на багатьох популярних пакетах, розробники привчаються його ігнорувати (alarm fatigue) — warn-канал стає шумом. Для маленького benign validation `0.03`/`0.05` відрізняються буквально кількома пакетами.
+- **`-max-hard-fp`** - стеля benign-block rate. False-block = непрацюючий `npm install`, тому production-профіль тримає її біля нуля (`0.001` або жорсткіше).
+- **`-max-soft-fp`** - стеля benign-warn rate. Якщо warn з'являється на багатьох популярних пакетах, розробники привчаються його ігнорувати (alarm fatigue) - warn-канал стає шумом. Для маленького benign validation `0.03`/`0.05` відрізняються буквально кількома пакетами.
 
 Основні knobs:
-- **`-workers`** — кількість паралельних pipeline worker-ів для аналізу корпусу; за замовчуванням `runtime.NumCPU()`.
-- **`-trials`** — budget random search для кожного кандидата `min_categories`.
-- **`-min-categories`** — список значень для tuning policy gate; default `1,2,3`, тому зазвичай прапор не треба вказувати.
-- **`-strip-osv`** — прибирає OSV veto з cached runs, щоб калібрувати scored-сигнали без домінування відомих CVE.
+- **`-workers`** - кількість паралельних pipeline worker-ів для аналізу корпусу; за замовчуванням `runtime.NumCPU()`.
+- **`-trials`** - budget random search для кожного кандидата `min_categories`.
+- **`-min-categories`** - список значень для tuning policy gate; default `1,2,3`, тому зазвичай прапор не треба вказувати.
+- **`-strip-osv`** - прибирає OSV veto з cached runs, щоб калібрувати scored-сигнали без домінування відомих CVE.
 
-Під обома стелями пошук максимізує **catch** = частку малварних пакетів, які потрапили хоча б у `warn`. Звіт включає `warn_precision` (P[malicious | warn]) — діагностика дискримінативної сили warn-вердикту: < 0.95 = warn-канал слабкий, треба покращувати детектори.
+Під обома стелями пошук максимізує **catch** = частку малварних пакетів, які потрапили хоча б у `warn`. Звіт включає `warn_precision` (P[malicious | warn]) - діагностика дискримінативної сили warn-вердикту: < 0.95 = warn-канал слабкий, треба покращувати детектори.
 
 Калібратор:
 1. Проганяє pipeline один раз на пакет паралельними worker-ами, кешує `(rule, score, veto)` сигнали
-2. Phase A — random search над tunable score-вагами, `allow_threshold`, `block_threshold` і `min_categories`
-3. Phase B — coordinate descent зі step=0.05 на найкращому random-кандидаті кожної `min_categories`-гілки
+2. Phase A - random search над tunable score-вагами, `allow_threshold`, `block_threshold` і `min_categories`
+3. Phase B - coordinate descent зі step=0.05 на найкращому random-кандидаті кожної `min_categories`-гілки
 4. Пише `proxy.calibrated.yaml` (готовий до підстановки) + `calibration-report.csv` з усіма trials
 5. Друкує Pareto frontier, per-category breakdown, top malicious misses, benign FP tables і фінальний summary
 
@@ -313,11 +313,11 @@ docker compose -f deployments/docker-compose.yml up -d --build
 
 ### Обмеження калібратора
 
-- **Network-залежні Layer 1 сигнали вимкнені** (downloads, maintainer-age) — у корпусі немає їх snapshot-ів. Ваги цих rules лишаються 0 і не впливають на пошук. Щоб увімкнути — розширити import tools snapshot-ами цих API і полями в `labels.jsonl`.
-- **OSV-вето домінує над scored-сигналами** — якщо більшість malicious у корпусі мають OSV-match, інші детектори майже не калібруються. Запусти калібрацію з `-strip-osv` щоб побачити чесну картину сигнатурного стеку. Для layer 2/3 найцінніші `malicious_intent` зразки без OSV-відомості.
-- **Per-category breakdown** — `calibrate` друкує метрики окремо для `compromised_lib`, `malicious_intent`, `popular`, `(uncategorised)`. Якщо `malicious_intent` catch сильно нижчий — це реальна діра в евристиках, а не проблема OSV.
-- **Малий benign validation шумить FP** — якщо у val лише ~139 benign, один warning рухає `warn_fp` на ~0.007. Для стабільного FP потрібні тисячі benign-пакетів (`import-benign -top 5000/10000`), особливо CLI/native/build/devtool пакети з install scripts.
-- **Class imbalance** — у проді частка malicious << 1%, наш ~50/50 split дає оптимістичну precision. Інтерпретуй метрики з поправкою на prior.
+- **Network-залежні Layer 1 сигнали вимкнені** (downloads, maintainer-age) - у корпусі немає їх snapshot-ів. Ваги цих rules лишаються 0 і не впливають на пошук. Щоб увімкнути - розширити import tools snapshot-ами цих API і полями в `labels.jsonl`.
+- **OSV-вето домінує над scored-сигналами** - якщо більшість malicious у корпусі мають OSV-match, інші детектори майже не калібруються. Запусти калібрацію з `-strip-osv` щоб побачити чесну картину сигнатурного стеку. Для layer 2/3 найцінніші `malicious_intent` зразки без OSV-відомості.
+- **Per-category breakdown** - `calibrate` друкує метрики окремо для `compromised_lib`, `malicious_intent`, `popular`, `(uncategorised)`. Якщо `malicious_intent` catch сильно нижчий - це реальна діра в евристиках, а не проблема OSV.
+- **Малий benign validation шумить FP** - якщо у val лише ~139 benign, один warning рухає `warn_fp` на ~0.007. Для стабільного FP потрібні тисячі benign-пакетів (`import-benign -top 5000/10000`), особливо CLI/native/build/devtool пакети з install scripts.
+- **Class imbalance** - у проді частка malicious << 1%, наш ~50/50 split дає оптимістичну precision. Інтерпретуй метрики з поправкою на prior.
 
 ## Обмеження та future work
 
@@ -326,5 +326,5 @@ docker compose -f deployments/docker-compose.yml up -d --build
 - BK-tree індексація top-10k не реалізована - наразі лінійне сканування з length-pruning, прийнятне в межах 500 ms бюджету Layer 1
 - Top-10k список може генеруватись вручну через `tools/gen-top10k`; `tools/import-benign` автоматично запускає генерацію, якщо `configs/top10k.txt` відсутній або замалий
 - Калібратор ваг є (див. секцію «Калібрація ваг»), benign/DataDog імпорт автоматизований; варто додати імпорт з GHSA / Backstabber-IO для ширшого malicious corpus
-- Network-залежні Layer 1 сигнали (downloads, maintainer-age) у калібраторі вимкнені — потрібен snapshot цих API в датасеті
+- Network-залежні Layer 1 сигнали (downloads, maintainer-age) у калібраторі вимкнені - потрібен snapshot цих API в датасеті
 - Спробувати імплементувати ШІ
