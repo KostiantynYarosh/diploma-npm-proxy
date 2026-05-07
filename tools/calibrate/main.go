@@ -25,7 +25,7 @@ const (
 	configPath          = "configs/proxy.yaml"
 	outConfigPath       = "configs/proxy.calibrated.yaml"
 	outCSVPath          = "calibration-report.csv"
-	refineSteps         = 3
+	refineSteps         = 10
 	valFraction         = 0.20
 	seed          int64 = 1
 )
@@ -100,6 +100,8 @@ func main() {
 	opts.Objective = objective
 	opts.Seed = seed
 	opts.MinCategories = minCategoryValues
+	opts.BaseAllow = cfg.Policy.AllowThreshold
+	opts.BaseBlock = cfg.Policy.BlockThreshold
 
 	best, logTrials := calibrate.Search(train, val, base, opts)
 	log.Printf("search complete: %d trials evaluated", len(logTrials))

@@ -2,27 +2,50 @@ package layer3
 
 import (
 	"context"
+	"regexp"
 	"strings"
 
-	"github.com/evanw/esbuild/pkg/api"
-	"github.com/yourusername/npm-proxy/internal/signal"
 	"github.com/yourusername/npm-proxy/internal/extractor"
+	"github.com/yourusername/npm-proxy/internal/signal"
 )
 
 // Capability categories.
 const (
-	CapNet       = "net_access"
-	CapExec      = "exec"
-	CapFSSens    = "fs_sensitive"
-	CapDynEval   = "dynamic_eval"
-	CapEnvRead   = "env_read"
+	CapNet     = "net_access"
+	CapExec    = "exec"
+	CapFSSens  = "fs_sensitive"
+	CapDynEval = "dynamic_eval"
+	CapEnvRead = "env_read"
 )
 
-var netModules = map[string]bool{
-	"http": true, "https": true, "net": true, "dgram": true, "tls": true,
-}
-
 var sensitivePaths = []string{"/etc/passwd", "/etc/shadow", ".ssh", ".npmrc", ".env"}
+
+// Import-shape patterns. They MUST be matched on a comments-stripped (but
+// strings-preserved) source: the literal module name has to be visible. Both
+// require('mod') / require("mod") and ESM `from 'mod'` / `from "mod"` are
+// covered. Unicode and escape sequences inside the module string are not
+// supported - npm rejects those names anyway.
+var (
+	reImportNet = regexp.MustCompile(
+		`require\s*\(\s*['"](?:http|https|net|dgram|tls)['"]\s*\)` +
+			`|from\s+['"](?:http|https|net|dgram|tls)['"]`)
+	reImportExec = regexp.MustCompile(
+		`require\s*\(\s*['"]child_process['"]\s*\)` +
+			`|from\s+['"]child_process['"]`)
+	reImportFS = regexp.MustCompile(
+		`require\s*\(\s*['"]fs(?:/promises)?['"]\s*\)` +
+			`|from\s+['"]fs(?:/promises)?['"]`)
+)
+
+// Call-shape patterns. They are matched on a fully-stripped source (comments
+// + string contents blanked) so things like "// uses eval(" or
+// 'message: "do not use eval()"' do not produce phantom hits.
+var (
+	reEvalCall    = regexp.MustCompile(`(?:^|[^.\w$])eval\s*\(`)
+	reNewFuncCall = regexp.MustCompile(`new\s+Function\s*\(`)
+	reVMRunCall   = regexp.MustCompile(`vm\s*\.\s*runIn(?:This|New)Context\s*\(`)
+	reProcessEnv  = regexp.MustCompile(`process\s*\.\s*env\b`)
+)
 
 type CapabilityAnalyzer struct {
 	netScore     float64
@@ -52,6 +75,10 @@ func (a *CapabilityAnalyzer) Analyze(_ context.Context, tree extractor.FileTree)
 			continue
 		}
 		detectCapabilities(string(content), caps)
+		if len(caps) == len(allCaps) {
+			// All capabilities already set; skip the remaining files.
+			break
+		}
 	}
 
 	var signals []signal.Signal
@@ -86,64 +113,48 @@ func (a *CapabilityAnalyzer) Analyze(_ context.Context, tree extractor.FileTree)
 	return signals, capList
 }
 
+var allCaps = []string{CapNet, CapExec, CapFSSens, CapDynEval, CapEnvRead}
+
+// detectCapabilities walks one source file and updates the capability set.
+// Two scrubbed views of the source are used:
+//
+//   - noComments: comments removed but string literals intact - used for
+//     import-shape patterns whose match depends on the literal module name
+//     (require('child_process'), import http from 'http', ...).
+//   - noStrings : on top of noComments, string contents blanked - used for
+//     call-shape patterns (eval(, new Function(, vm.run...) and identifier
+//     lookups (process.env). This kills "// uses eval" and
+//     "msg = 'do not eval()'" false hits without dropping real call sites.
+//
+// This is the substitute for full AST analysis: cheap, deterministic, and
+// removes the dominant false-match source on the npm corpus.
 func detectCapabilities(src string, caps map[string]bool) {
-	result := api.Transform(src, api.TransformOptions{
-		Loader: api.LoaderJS,
-	})
-	if len(result.Errors) > 0 {
-		// Fall back to regex-based detection on parse failure.
-		detectCapabilitiesRegex(src, caps)
-		return
+	noComments := stripComments(src)
+	noStrings := stripStringContents(noComments)
+
+	if !caps[CapNet] && reImportNet.MatchString(noComments) {
+		caps[CapNet] = true
 	}
-
-	walkAST(src, caps)
-}
-
-// walkAST uses esbuild's parsed output to find capabilities.
-// Since esbuild doesn't expose a Go AST walk API directly, we use its
-// metafile / source map approach: parse + scan the transformed output
-// for known patterns. For robust analysis we use source-level regex
-// on the *original* source combined with esbuild's error-free validation.
-func walkAST(src string, caps map[string]bool) {
-	detectCapabilitiesRegex(src, caps)
-}
-
-func detectCapabilitiesRegex(src string, caps map[string]bool) {
-	// Network capabilities.
-	for mod := range netModules {
-		if strings.Contains(src, `require('`+mod+`')`) ||
-			strings.Contains(src, `require("`+mod+`")`) ||
-			strings.Contains(src, `from '`+mod+`'`) ||
-			strings.Contains(src, `from "`+mod+`"`) {
-			caps[CapNet] = true
-		}
-	}
-
-	// Exec capabilities.
-	if strings.Contains(src, "child_process") {
+	if !caps[CapExec] && reImportExec.MatchString(noComments) {
 		caps[CapExec] = true
 	}
-
-	// FS sensitive access.
-	if strings.Contains(src, "require('fs')") || strings.Contains(src, `require("fs")`) {
+	if !caps[CapFSSens] && reImportFS.MatchString(noComments) {
 		for _, sp := range sensitivePaths {
-			if strings.Contains(src, sp) {
+			if strings.Contains(noComments, sp) {
 				caps[CapFSSens] = true
 				break
 			}
 		}
 	}
 
-	// Dynamic eval.
-	if strings.Contains(src, "eval(") ||
-		strings.Contains(src, "new Function(") ||
-		strings.Contains(src, "vm.runInThisContext") ||
-		strings.Contains(src, "vm.runInNewContext") {
+	if !caps[CapDynEval] &&
+		(reEvalCall.MatchString(noStrings) ||
+			reNewFuncCall.MatchString(noStrings) ||
+			reVMRunCall.MatchString(noStrings)) {
 		caps[CapDynEval] = true
 	}
 
-	// Environment variable reading.
-	if strings.Contains(src, "process.env") {
+	if !caps[CapEnvRead] && reProcessEnv.MatchString(noStrings) {
 		caps[CapEnvRead] = true
 	}
 }

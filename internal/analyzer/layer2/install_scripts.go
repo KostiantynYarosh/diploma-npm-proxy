@@ -16,9 +16,18 @@ var (
 	reBase64Exec  = regexp.MustCompile(`base64\s+-d`)
 	reNodeEval    = regexp.MustCompile(`node\s+-e\s+`)
 	reExternalURL = regexp.MustCompile(`https?://[^\s'"]+`)
-	reChildProc   = regexp.MustCompile(`(require\s*\(\s*['"]child_process['"]\s*\)|child_process)`)
-	reEvalCall    = regexp.MustCompile(`\beval\s*\(`)
-	reDynamicReq  = regexp.MustCompile(`require\s*\(\s*[^'"` + "`" + `]`)
+	// reChildProc previously had a bare `|child_process` alternation that
+	// matched the substring anywhere - including log messages, npm script
+	// names, and error strings ("setting up child_process for spawn"). Now
+	// only an actual import/require of the module fires the rule, which is
+	// the only shape that meaningfully indicates the script will spawn one.
+	reChildProc = regexp.MustCompile(
+		`require\s*\(\s*['"]child_process['"]\s*\)` +
+			`|from\s+['"]child_process['"]`)
+	// reEvalCall rejects method calls and identifier prefixes so obj.eval(),
+	// safeEval(), and eval-like names on AST/parser libraries don't fire.
+	reEvalCall   = regexp.MustCompile(`(?:^|[^.\w$])eval\s*\(`)
+	reDynamicReq = regexp.MustCompile(`require\s*\(\s*[^'"` + "`" + `]`)
 )
 
 var lifecycleScripts = []string{"preinstall", "install", "postinstall", "preuninstall", "prepare"}

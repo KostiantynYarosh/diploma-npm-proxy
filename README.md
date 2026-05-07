@@ -35,47 +35,49 @@
 
 ### Детектори
 
-| Шар | Файл | Rule | Score | Veto | CWE | Що виявляє |
-|-----|------|------|-------|------|-----|------------|
-| 1 | [layer1/osv.go](internal/analyzer/layer1/osv.go) | `osv_known_vulnerability` | 1.0 | так | CWE-1035 | відомі вразливості з OSV.dev |
-| 1 | [layer1/typosquatting.go](internal/analyzer/layer1/typosquatting.go) | `typosquat_levenshtein` | 0.40 | ні | CWE-1035 | імена близькі до top-10k за Damerau-Levenshtein |
-| 1 | [layer1/typosquatting.go](internal/analyzer/layer1/typosquatting.go) | `typosquat_ascii_homoglyph` | 0.50 | ні | CWE-1035 | заміна цифр/символів у назві (`react0`, `l0dash`) |
-| 1 | [layer1/metadata.go](internal/analyzer/layer1/metadata.go) | `metadata_new_package` | 0.20 | ні | - | пакет опублікований менше N днів тому |
-| 1 | [layer1/metadata.go](internal/analyzer/layer1/metadata.go) | `metadata_young_maintainer` | 0.25 | ні | - | обліковий запис мейнтейнера молодший N днів |
-| 1 | [layer1/metadata.go](internal/analyzer/layer1/metadata.go) | `metadata_low_downloads` | 0.15 | ні | - | менше порогових завантажень на місяць |
-| 1 | [layer1/metadata.go](internal/analyzer/layer1/metadata.go) | `metadata_popular_but_stale` | 0.10 | ні | - | популярний пакет без оновлень понад N днів |
-| 1 | [layer1/anomaly.go](internal/analyzer/layer1/anomaly.go) | `anomaly_release_burst` | 0.20 | ні | - | кілька версій у короткий проміжок часу |
-| 1 | [layer1/anomaly.go](internal/analyzer/layer1/anomaly.go) | `anomaly_maintainer_change` | 0.30 | ні | - | мейнтейнер змінився після попереднього релізу |
-| 1 | [layer1/anomaly.go](internal/analyzer/layer1/anomaly.go) | `anomaly_unusual_publish_hour` | 0.10 | ні | - | публікація поза звичним вікном активності |
-| 1 | [layer1/anomaly.go](internal/analyzer/layer1/anomaly.go) | `anomaly_size_spike` | 0.15 | ні | - | розмір tarball аномально більший за попередні |
-| 1 | [layer1/license.go](internal/analyzer/layer1/license.go) | `license_missing` | 0.10 | ні | - | поле `license` відсутнє або порожнє |
-| 1 | [layer1/license.go](internal/analyzer/layer1/license.go) | `license_changed_in_patch` | 0.25 | ні | - | ліцензія змінилась у patch-релізі |
-| 2 | [layer2/install_scripts.go](internal/analyzer/layer2/install_scripts.go) | `install_script_curl_sh` | 1.0 | так | CWE-78 | `curl\|sh` / `wget\|sh` - pipe-виконання скрипта з мережі |
-| 2 | [layer2/install_scripts.go](internal/analyzer/layer2/install_scripts.go) | `install_script_base64` | 0.35 | ні | CWE-506 | `base64 -d` або `atob` у lifecycle-скрипті |
-| 2 | [layer2/install_scripts.go](internal/analyzer/layer2/install_scripts.go) | `install_script_child_process` | 0.20 | ні | CWE-78 | `require('child_process')` у lifecycle-скрипті |
-| 2 | [layer2/install_scripts.go](internal/analyzer/layer2/install_scripts.go) | `install_script_eval` | 0.15 | ні | CWE-95 | `eval(...)` у lifecycle-скрипті |
-| 2 | [layer2/install_scripts.go](internal/analyzer/layer2/install_scripts.go) | `install_script_node_eval` | 0.15 | ні | CWE-95 | `node -e "..."` у lifecycle-скрипті |
-| 2 | [layer2/install_scripts.go](internal/analyzer/layer2/install_scripts.go) | `install_script_dynamic_require` | 0.10 | ні | CWE-706 | `require(variable)` у lifecycle-скрипті |
-| 2 | [layer2/install_scripts.go](internal/analyzer/layer2/install_scripts.go) | `install_script_external_url` | 0.08 | ні | CWE-829 | http/https-посилання у lifecycle-скрипті |
-| 3 | [layer3/capabilities.go](internal/analyzer/layer3/capabilities.go) | `cap_exec` | 0.15 | ні | CWE-78 | `child_process.exec/spawn` у коді |
-| 3 | [layer3/capabilities.go](internal/analyzer/layer3/capabilities.go) | `cap_net` | 0.30 | ні | CWE-918 | мережеві виклики (`http`, `https`, `net`) |
-| 3 | [layer3/capabilities.go](internal/analyzer/layer3/capabilities.go) | `cap_fs_sensitive` | 0.25 | ні | CWE-732 | доступ до чутливих шляхів (`/etc/passwd`, `~/.ssh`) |
-| 3 | [layer3/capabilities.go](internal/analyzer/layer3/capabilities.go) | `cap_dynamic_eval` | 0.20 | ні | CWE-95 | `eval`, `new Function`, `vm.runIn*` |
-| 3 | [layer3/capabilities.go](internal/analyzer/layer3/capabilities.go) | `cap_env_read` | 0.10 | ні | CWE-200 | читання змінних оточення (`process.env`) |
-| 3 | [layer3/entropy.go](internal/analyzer/layer3/entropy.go) | `entropy_obfuscation` | 0.30 | ні | CWE-506 | Shannon entropy > порогу або base64/hex ratio |
-| 3 | [layer3/sinks.go](internal/analyzer/layer3/sinks.go) | `sink_eval` / `sink_new_function` / `sink_vm_run` / `sink_dynamic_require` | 0.20 | ні | CWE-95 | небезпечні sink-функції без ознак обфускації |
-| 3 | [layer3/sinks.go](internal/analyzer/layer3/sinks.go) | `sink_with_obfuscation` | 0.55 | ні | CWE-95 | sink + висока ентропія в одному пакеті (важче за sink_alone, але не veto - мініфіковані bundle-и легально матчать патерн) |
-| 3 | [layer3/version_diff.go](internal/analyzer/layer3/version_diff.go) | `version_diff_new_exec_in_patch` | 0.35 | ні | CWE-78 | поява `child_process` у patch-релізі |
-| 3 | [layer3/version_diff.go](internal/analyzer/layer3/version_diff.go) | `version_diff_new_net_in_patch` | 0.25 | ні | CWE-918 | поява мережевих викликів у patch-релізі |
-| 3 | [layer3/version_diff.go](internal/analyzer/layer3/version_diff.go) | `version_diff_new_deps_in_patch` | 0.20 | ні | CWE-829 | нові `dependencies` у patch-релізі |
-| 3 | [layer3/version_diff.go](internal/analyzer/layer3/version_diff.go) | `version_diff_new_script_in_patch` | 0.30 | ні | CWE-506 | поява lifecycle-скрипту у patch-релізі |
-| 3 | [combo.go](internal/analyzer/combo.go) | `typosquat_with_install_script` | 0.20 | ні | CWE-506 | typo/homoglyph + lifecycle-скрипт; сильніший сигнал, ніж сума окремих слабких правил |
-| 3 | [combo.go](internal/analyzer/combo.go) | `install_script_with_exec` | 0.20 | ні | CWE-78 | lifecycle-скрипт + exec/child_process у коді або самому install hook |
-| 3 | [combo.go](internal/analyzer/combo.go) | `install_script_with_network` | 0.15 | ні | CWE-829 | lifecycle-скрипт + мережевий доступ або external URL |
-| 3 | [combo.go](internal/analyzer/combo.go) | `install_script_with_obfuscation` | 0.20 | ні | CWE-506 | lifecycle-скрипт + entropy/sink_with_obfuscation; ловить тихі install-carrier пакети |
-| 4 | [policy/engine.go](internal/policy/engine.go) | - | - | - | - | агрегує сигнали, застосовує veto та пороги |
+| Шар | Файл | Rule | Veto | CWE | Що виявляє |
+|-----|------|------|------|-----|------------|
+| 1 | [layer1/osv.go](internal/analyzer/layer1/osv.go) | `osv_known_vulnerability` | так | CWE-1035 | відомі вразливості з OSV.dev |
+| 1 | [layer1/typosquatting.go](internal/analyzer/layer1/typosquatting.go) | `typosquat_close` / `typosquat_warn` | ні | CWE-1035 | імена близькі до top-10k за Damerau-Levenshtein (close = відстань 1, warn = відстань 2) |
+| 1 | [layer1/typosquatting.go](internal/analyzer/layer1/typosquatting.go) | `typosquat_ascii_homoglyph` | ні | CWE-1035 | заміна цифр/символів у назві (`react0`, `l0dash`) |
+| 1 | [layer1/metadata.go](internal/analyzer/layer1/metadata.go) | `metadata_new_package` | ні | - | пакет опублікований менше N днів тому |
+| 1 | [layer1/metadata.go](internal/analyzer/layer1/metadata.go) | `metadata_young_maintainer` | ні | - | обліковий запис мейнтейнера молодший N днів |
+| 1 | [layer1/metadata.go](internal/analyzer/layer1/metadata.go) | `metadata_single_maintainer` | ні | - | пакет має лише одного мейнтейнера |
+| 1 | [layer1/metadata.go](internal/analyzer/layer1/metadata.go) | `metadata_low_downloads` | ні | - | менше порогових завантажень на місяць |
+| 1 | [layer1/metadata.go](internal/analyzer/layer1/metadata.go) | `metadata_popular_but_stale` | ні | - | популярний пакет без оновлень понад N днів |
+| 1 | [layer1/anomaly.go](internal/analyzer/layer1/anomaly.go) | `anomaly_version_spike` | ні | - | кілька версій у короткий проміжок часу |
+| 1 | [layer1/anomaly.go](internal/analyzer/layer1/anomaly.go) | `anomaly_maintainer_change` | ні | - | мейнтейнер змінився після попереднього релізу |
+| 1 | [layer1/anomaly.go](internal/analyzer/layer1/anomaly.go) | `anomaly_unusual_publish_hour` | ні | - | публікація поза звичним вікном активності |
+| 1 | [layer1/anomaly.go](internal/analyzer/layer1/anomaly.go) | `anomaly_size_deviation` | ні | - | розмір tarball аномально більший за попередні |
+| 1 | [layer1/license.go](internal/analyzer/layer1/license.go) | `license_missing` | ні | - | поле `license` відсутнє або порожнє |
+| 1 | [layer1/license.go](internal/analyzer/layer1/license.go) | `license_patch_change` | ні | - | ліцензія змінилась у patch-релізі |
+| 2 | [layer2/install_scripts.go](internal/analyzer/layer2/install_scripts.go) | `install_script_present_<hook>` | ні | CWE-506 | будь-який непорожній lifecycle-скрипт (preinstall/install/postinstall/prepare) |
+| 2 | [layer2/install_scripts.go](internal/analyzer/layer2/install_scripts.go) | `install_script_curl_pipe_<hook>` / `install_script_wget_pipe_<hook>` | так | CWE-506 | `curl\|sh` / `wget\|sh` - pipe-виконання скрипта з мережі |
+| 2 | [layer2/install_scripts.go](internal/analyzer/layer2/install_scripts.go) | `install_script_base64_decode_<hook>` | ні | CWE-506 | `base64 -d` або `atob` у lifecycle-скрипті |
+| 2 | [layer2/install_scripts.go](internal/analyzer/layer2/install_scripts.go) | `install_script_child_process_<hook>` | ні | CWE-506 | `require('child_process')` у lifecycle-скрипті |
+| 2 | [layer2/install_scripts.go](internal/analyzer/layer2/install_scripts.go) | `install_script_eval_<hook>` | ні | CWE-506 | `eval(...)` у lifecycle-скрипті |
+| 2 | [layer2/install_scripts.go](internal/analyzer/layer2/install_scripts.go) | `install_script_node_eval_<hook>` | ні | CWE-506 | `node -e "..."` у lifecycle-скрипті |
+| 2 | [layer2/install_scripts.go](internal/analyzer/layer2/install_scripts.go) | `install_script_dynamic_require_<hook>` | ні | CWE-506 | `require(variable)` у lifecycle-скрипті |
+| 2 | [layer2/install_scripts.go](internal/analyzer/layer2/install_scripts.go) | `install_script_external_url_<hook>` | ні | CWE-506 | http/https-посилання у lifecycle-скрипті |
+| 3 | [layer3/capabilities.go](internal/analyzer/layer3/capabilities.go) | `capability_exec` | ні | CWE-78 | `child_process.exec/spawn` у коді |
+| 3 | [layer3/capabilities.go](internal/analyzer/layer3/capabilities.go) | `capability_net_access` | ні | CWE-918 | мережеві виклики (`http`, `https`, `net`) |
+| 3 | [layer3/capabilities.go](internal/analyzer/layer3/capabilities.go) | `capability_fs_sensitive` | ні | CWE-22 | доступ до чутливих шляхів (`/etc/passwd`, `~/.ssh`) |
+| 3 | [layer3/capabilities.go](internal/analyzer/layer3/capabilities.go) | `capability_dynamic_eval` | ні | CWE-94 | `eval`, `new Function`, `vm.runIn*` |
+| 3 | [layer3/capabilities.go](internal/analyzer/layer3/capabilities.go) | `capability_env_read` | ні | - | читання змінних оточення (`process.env`) |
+| 3 | [layer3/entropy.go](internal/analyzer/layer3/entropy.go) | `obfuscation_high_entropy` | ні | CWE-506 | Shannon entropy > порогу або base64/hex ratio |
+| 3 | [layer3/sinks.go](internal/analyzer/layer3/sinks.go) | `sink_eval` / `sink_new_function` / `sink_vm_run_this_context` / `sink_vm_run_new_context` / `sink_dynamic_require` | ні | CWE-95 | небезпечні sink-функції без ознак обфускації |
+| 3 | [layer3/sinks.go](internal/analyzer/layer3/sinks.go) | `sink_with_obfuscation` | ні | CWE-95 | sink + висока ентропія в одному пакеті (важче за sink_alone, але не veto - мініфіковані bundle-и легально матчать патерн) |
+| 3 | [layer3/version_diff.go](internal/analyzer/layer3/version_diff.go) | `version_diff_new_exec_in_patch` | ні | CWE-78 | поява `child_process` у patch-релізі |
+| 3 | [layer3/version_diff.go](internal/analyzer/layer3/version_diff.go) | `version_diff_new_net_in_patch` | ні | CWE-918 | поява мережевих викликів у patch-релізі |
+| 3 | [layer3/version_diff.go](internal/analyzer/layer3/version_diff.go) | `version_diff_new_dependency` | ні | CWE-829 | нові `dependencies` у patch-релізі |
+| 3 | [layer3/version_diff.go](internal/analyzer/layer3/version_diff.go) | `version_diff_new_script_<hook>` / `version_diff_changed_script_<hook>` | ні | CWE-506 | поява або зміна lifecycle-скрипту у patch-релізі |
+| 3 | [combo.go](internal/analyzer/combo.go) | `typosquat_with_install_script` | ні | CWE-506 | typo/homoglyph + lifecycle-скрипт; сильніший сигнал, ніж сума окремих слабких правил |
+| 3 | [combo.go](internal/analyzer/combo.go) | `install_script_with_exec` | ні | CWE-78 | lifecycle-скрипт + exec/child_process у коді або самому install hook |
+| 3 | [combo.go](internal/analyzer/combo.go) | `install_script_with_network` | ні | CWE-829 | lifecycle-скрипт + мережевий доступ або external URL |
+| 3 | [combo.go](internal/analyzer/combo.go) | `install_script_with_obfuscation` | ні | CWE-506 | lifecycle-скрипт + entropy/sink_with_obfuscation; ловить тихі install-carrier пакети |
+| 4 | [policy/engine.go](internal/policy/engine.go) | - | - | - | агрегує сигнали, застосовує veto та пороги |
 
-Усі ваги налаштовуються через [configs/proxy.yaml](configs/proxy.yaml) без перекомпіляції.
+Score-ваги в таблиці навмисно опущені: вони не є константами, а підбираються офлайн-калібратором (див. секцію «Калібрація ваг») під жорсткі cap-и на benign-block / benign-warn rate і записуються в [configs/proxy.yaml](configs/proxy.yaml) - тому будь-яке конкретне число тут одразу б розходилось з конфігом після наступного прогону. Veto-сигнали (`osv_known_vulnerability`, `install_script_curl_pipe_*`, `install_script_wget_pipe_*`) калібрації не підлягають - вони завжди дають вердикт BLOCK незалежно від ваг.
 
 ### Формула ризику
 
@@ -119,6 +121,7 @@ cmd/
 internal/
 ├─ analyzer/
 │  ├─ engine.go        оркестратор Layer 2 + 3 (post-download)
+│  ├─ combo.go         cross-layer combination signals
 │  ├─ layer1/          метадані та зовнішні сигнали
 │  ├─ layer2/          install scripts
 │  └─ layer3/          статичний аналіз: capabilities, entropy, sinks, version diff
@@ -131,26 +134,27 @@ internal/
 ├─ extractor/          in-memory розпаковка tarball
 ├─ integrity/          SHA-256/512 verification
 ├─ siem/               syslog (RFC-5424) + webhook (HMAC) emitter
+├─ semverutil/         спільні хелпери для semver-парсингу
+├─ calibrate/          ядро калібратора: метрики, кешування сигналів, search loop, reports
 └─ config/             YAML config + env override через koanf
 
 tools/
 ├─ gen-top10k/         генератор популярних npm-пакетів через search API
 ├─ import-benign/      імпорт benign corpus з top10k.txt
 ├─ import-datadog/     імпорт DataDog malicious corpus
-└─ calibrate/          офлайн-калібратор ваг і policy-порогів
+└─ calibrate/          CLI офлайн-калібратора ваг і policy-порогів
 
 configs/
 ├─ proxy.yaml          усі ваги, пороги, таймаути
 └─ top10k.txt          10k популярних пакетів за weekly downloads
 
 test/
-└─ fixtures/           5 пакетів-зразків: clean, malicious-install, typosquat,
-                       new-exec-in-patch, obfuscated-eval
+├─ fixtures/           5 пакетів-зразків: clean-package, malicious-install-script,
+│                      typosquat-lodash, new-exec-in-patch, obfuscated-eval
+└─ integration/        end-to-end перевірка pipeline (Layer 2 → Layer 3 → policy)
 
-docs/                 
-├─ analyzer-flow.puml  UML activity diagram
-├─ detectors-table.md  зведена характеристика методів
-└─ risk-formula.md     формула ризику + приклади розрахунку
+docs/
+└─ detectors-table.md  зведена характеристика методів
 ```
 
 ## Спостережуваність

@@ -33,6 +33,14 @@ type SearchOptions struct {
 	AllowRange    [2]float64
 	BlockRange    [2]float64
 	MinCategories []int
+	// BaseAllow/BaseBlock anchor the baseline-seeded coordinate descent. Zero
+	// values fall back to the midpoints of AllowRange / BlockRange.
+	BaseAllow float64
+	BaseBlock float64
+	// PriorSigma is the standard deviation used when sampling weights as a
+	// truncated normal around the baseline weight vector. Zero falls back to
+	// 0.25, which keeps roughly 95% of draws within ±0.5 of baseline.
+	PriorSigma float64
 }
 
 // DefaultSearchOptions returns sane defaults: 700 random trials, 3 refinement
@@ -122,10 +130,17 @@ func Search(train, val []*PackageRun, base Weights, opts SearchOptions) (best Tr
 func searchOneMinCategory(train, val []*PackageRun, base Weights, opts SearchOptions, minCategories int) (best Trial, log []Trial) {
 	rng := rand.New(rand.NewSource(opts.Seed))
 	obj := opts.Objective
+	sigma := opts.PriorSigma
+	if sigma <= 0 {
+		sigma = 0.25
+	}
 
-	// Phase A: random search.
+	// Phase A: random search seeded by the baseline weight vector. Each weight
+	// is drawn from a truncated normal centered on base[k] with sigma=0.25,
+	// clipped to [WeightMin, WeightMax]. This keeps random exploration honest
+	// about the baseline prior instead of shredding the hand-tuned weights.
 	for i := 0; i < opts.Trials; i++ {
-		w := sampleWeights(rng, base, opts.WeightMin, opts.WeightMax)
+		w := sampleWeights(rng, base, opts.WeightMin, opts.WeightMax, sigma)
 		allow := sampleRange(rng, opts.AllowRange)
 		block := sampleRange(rng, opts.BlockRange)
 		if block <= allow {
@@ -150,7 +165,63 @@ func searchOneMinCategory(train, val []*PackageRun, base Weights, opts SearchOpt
 		return best, log
 	}
 
-	// Phase B: coordinate descent starting from the best random trial.
+	// Phase B: run coordinate descent from two seeds and keep whichever lands
+	// higher. The random-phase winner explores wide priors; the baseline seed
+	// preserves the curated weight vector even when Phase A drifted away from
+	// it. The combined log is the concatenation - both tracks are recorded.
+	randomSeed := best
+	bestRandom := refineCoordinateDescent(train, val, randomSeed, &log, opts)
+
+	baseSeed := buildBaselineSeed(train, val, base, opts, minCategories, &log)
+	if baseSeed.Score(obj) > best.Score(obj) {
+		best = baseSeed
+	}
+	bestBase := refineCoordinateDescent(train, val, baseSeed, &log, opts)
+
+	if bestBase.Score(obj) > bestRandom.Score(obj) {
+		best = bestBase
+	} else {
+		best = bestRandom
+	}
+
+	return best, log
+}
+
+// buildBaselineSeed evaluates the curated baseline weights at the configured
+// (or midpoint) thresholds and appends the trial to the log so the baseline
+// itself is visible in reports. The trial is returned for use as the second
+// coordinate-descent seed.
+func buildBaselineSeed(train, val []*PackageRun, base Weights, opts SearchOptions, minCategories int, log *[]Trial) Trial {
+	allow := opts.BaseAllow
+	if allow <= 0 {
+		allow = (opts.AllowRange[0] + opts.AllowRange[1]) / 2
+	}
+	block := opts.BaseBlock
+	if block <= 0 {
+		block = (opts.BlockRange[0] + opts.BlockRange[1]) / 2
+	}
+	if block <= allow {
+		block = allow + opts.StepSize
+	}
+	w := base.Clone()
+	t := Trial{
+		Index:         len(*log),
+		Weights:       w,
+		Allow:         allow,
+		Block:         block,
+		MinCategories: minCategories,
+		TrainMet:      EvaluateWithMinCategories(train, w, allow, block, minCategories),
+		ValMet:        EvaluateWithMinCategories(val, w, allow, block, minCategories),
+	}
+	*log = append(*log, t)
+	return t
+}
+
+// refineCoordinateDescent runs opts.RefineSteps passes of coordinate descent
+// starting from seed and returns the best trial it found.
+func refineCoordinateDescent(train, val []*PackageRun, seed Trial, log *[]Trial, opts SearchOptions) Trial {
+	obj := opts.Objective
+	best := seed
 	for pass := 0; pass < opts.RefineSteps; pass++ {
 		improved := false
 		for _, key := range append([]string{}, TunableRules...) {
@@ -162,7 +233,7 @@ func searchOneMinCategory(train, val []*PackageRun, base Weights, opts SearchOpt
 				w := best.Weights.Clone()
 				w[key] = v
 				t := Trial{
-					Index:         len(log),
+					Index:         len(*log),
 					Weights:       w,
 					Allow:         best.Allow,
 					Block:         best.Block,
@@ -170,7 +241,7 @@ func searchOneMinCategory(train, val []*PackageRun, base Weights, opts SearchOpt
 					TrainMet:      EvaluateWithMinCategories(train, w, best.Allow, best.Block, best.MinCategories),
 					ValMet:        EvaluateWithMinCategories(val, w, best.Allow, best.Block, best.MinCategories),
 				}
-				log = append(log, t)
+				*log = append(*log, t)
 				if t.Score(obj) > best.Score(obj) {
 					best = t
 					improved = true
@@ -195,7 +266,7 @@ func searchOneMinCategory(train, val []*PackageRun, base Weights, opts SearchOpt
 					continue
 				}
 				t := Trial{
-					Index:         len(log),
+					Index:         len(*log),
 					Weights:       w,
 					Allow:         allow,
 					Block:         block,
@@ -203,7 +274,7 @@ func searchOneMinCategory(train, val []*PackageRun, base Weights, opts SearchOpt
 					TrainMet:      EvaluateWithMinCategories(train, w, allow, block, best.MinCategories),
 					ValMet:        EvaluateWithMinCategories(val, w, allow, block, best.MinCategories),
 				}
-				log = append(log, t)
+				*log = append(*log, t)
 				if t.Score(obj) > best.Score(obj) {
 					best = t
 					improved = true
@@ -214,20 +285,48 @@ func searchOneMinCategory(train, val []*PackageRun, base Weights, opts SearchOpt
 			break
 		}
 	}
-
-	return best, log
+	return best
 }
 
-// sampleWeights draws a fresh weight vector. base is included only for its
-// keys - existing values are not used as priors so the random phase explores
-// the full hypercube.
-func sampleWeights(rng *rand.Rand, base Weights, lo, hi float64) Weights {
+// sampleWeights draws a fresh weight vector as a truncated normal around the
+// baseline weight vector. For each key the sample is N(base[k], sigma)
+// rejection-sampled into [lo, hi]. This anchors random exploration to curated
+// priors instead of treating the hypercube as uniform; coordinate descent in
+// Phase B is then free to walk anywhere within the global bounds.
+func sampleWeights(rng *rand.Rand, base Weights, lo, hi, sigma float64) Weights {
 	w := make(Weights, len(base))
-	for k := range base {
-		w[k] = lo + rng.Float64()*(hi-lo)
+	for k, b := range base {
+		w[k] = truncatedNormal(rng, b, sigma, lo, hi)
 	}
 	return w
 }
+
+// truncatedNormal draws a sample from N(mean, sigma) clipped to [lo, hi] via
+// rejection sampling. After 8 rejections it falls back to a uniform draw on
+// [lo, hi] - this prevents pathological loops when mean is far outside the
+// bounds (e.g. baseline weight already exceeds hi for a rule).
+func truncatedNormal(rng *rand.Rand, mean, sigma, lo, hi float64) float64 {
+	if hi <= lo {
+		return lo
+	}
+	if sigma <= 0 {
+		if mean < lo {
+			return lo
+		}
+		if mean > hi {
+			return hi
+		}
+		return mean
+	}
+	for i := 0; i < 8; i++ {
+		v := mean + sigma*rng.NormFloat64()
+		if v >= lo && v <= hi {
+			return v
+		}
+	}
+	return lo + rng.Float64()*(hi-lo)
+}
+
 
 func sampleRange(rng *rand.Rand, r [2]float64) float64 {
 	return r[0] + rng.Float64()*(r[1]-r[0])

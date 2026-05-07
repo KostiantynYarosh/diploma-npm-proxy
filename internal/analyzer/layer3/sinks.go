@@ -10,11 +10,14 @@ import (
 )
 
 var (
-	reEval           = regexp.MustCompile(`\beval\s*\(`)
-	reNewFunction    = regexp.MustCompile(`new\s+Function\s*\(`)
-	reVMRunThis      = regexp.MustCompile(`vm\.runInThisContext\s*\(`)
-	reVMRunNew       = regexp.MustCompile(`vm\.runInNewContext\s*\(`)
-	reDynRequire     = regexp.MustCompile(`require\s*\(\s*(?:[^'"` + "`" + `\s][^)]*)\)`)
+	// reEval rejects method calls (obj.eval(...)) and identifier prefixes
+	// (safeEval(...)) so only bare eval(...) calls match. Many libraries
+	// expose .eval() on parser/AST objects without invoking the global one.
+	reEval        = regexp.MustCompile(`(?:^|[^.\w$])eval\s*\(`)
+	reNewFunction = regexp.MustCompile(`new\s+Function\s*\(`)
+	reVMRunThis   = regexp.MustCompile(`vm\.runInThisContext\s*\(`)
+	reVMRunNew    = regexp.MustCompile(`vm\.runInNewContext\s*\(`)
+	reDynRequire  = regexp.MustCompile(`require\s*\(\s*(?:[^'"` + "`" + `\s][^)]*)\)`)
 )
 
 type SinkAnalyzer struct {
@@ -52,13 +55,17 @@ func (s *SinkAnalyzer) Analyze(_ context.Context, tree extractor.FileTree, hasOb
 	// so the calibrator has one weight to tune instead of five identical
 	// ones. Without obfuscation we keep per-sink rule names because they
 	// rarely co-occur and the granularity is useful in reports.
+	//
+	// Source is run through stripComments + stripStringContents before regex
+	// scanning so docstrings, log messages, and "do not use eval()" warnings
+	// in code do not produce phantom sink hits. Real calls are preserved.
 	for path, content := range tree {
 		if !isJSFile(path) {
 			continue
 		}
-		src := string(content)
+		scrubbed := stripStringContents(stripComments(string(content)))
 		for _, p := range patterns {
-			if !p.re.MatchString(src) {
+			if !p.re.MatchString(scrubbed) {
 				continue
 			}
 			if hasObfuscation {
@@ -92,16 +99,18 @@ func appendIfNotPresent(signals []signal.Signal, s signal.Signal) []signal.Signa
 	return append(signals, s)
 }
 
-// HasSinks returns true if any dangerous sink pattern is present in the file tree.
+// HasSinks returns true if any dangerous sink pattern is present in the file
+// tree. Sources are scrubbed of comments and string contents before scanning
+// so the same precision rules as Analyze apply here.
 func HasSinks(tree extractor.FileTree) bool {
 	patterns := []*regexp.Regexp{reEval, reNewFunction, reVMRunThis, reVMRunNew, reDynRequire}
 	for path, content := range tree {
 		if !isJSFile(path) {
 			continue
 		}
-		src := string(content)
+		scrubbed := stripStringContents(stripComments(string(content)))
 		for _, re := range patterns {
-			if re.MatchString(src) {
+			if re.MatchString(scrubbed) {
 				return true
 			}
 		}
