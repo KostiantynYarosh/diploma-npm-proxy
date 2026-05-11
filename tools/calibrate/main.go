@@ -140,7 +140,7 @@ func main() {
 
 	printParetoFrontier(logTrials, opts.Objective, 12)
 	printPerCategory(val, best.Weights, best.Allow, best.Block, best.MinCategories)
-	printMaliciousMisses(val, best.Weights, best.Allow, best.Block, best.MinCategories, "malicious_intent", 20)
+	printMissesByCategory(val, best.Weights, best.Allow, best.Block, best.MinCategories, 20)
 	printBenignBlocks(val, best.Weights, best.Allow, best.Block, best.MinCategories, 20)
 	printBenignWarns(val, best.Weights, best.Allow, best.Block, best.MinCategories, 10)
 	printFinalStatistics("selected best validation trial", best.Index, best.Score(opts.Objective), best.ValMet, best.Allow, best.Block, best.MinCategories, opts.Objective)
@@ -533,6 +533,103 @@ func printFinalStatistics(
 	fmt.Printf("  confusion: B:allow=%d warn=%d block=%d | M:allow=%d warn=%d block=%d\n",
 		m.BenignAllow, m.BenignWarn, m.BenignBlock,
 		m.MaliciousAllow, m.MaliciousWarn, m.MaliciousBlock)
+}
+
+// printMissesByCategory iterates malicious sub-categories in runs and, for
+// each, prints (a) the existing miss listing + fired-rule histogram and
+// (b) a "silent rules" section: detectors that fire on at least one malicious
+// run elsewhere in the corpus but never on any miss in this category. Silent
+// rules are the diagnostic for the dissertation's "limitations" section -
+// they're working detectors that simply don't cover this attack family.
+func printMissesByCategory(
+	runs []*calibrate.PackageRun,
+	w calibrate.Weights,
+	allow, block float64,
+	minCategories int,
+	top int,
+) {
+	categories := maliciousCategories(runs)
+	if len(categories) == 0 {
+		fmt.Println("malicious misses by category: no malicious runs in this split")
+		return
+	}
+
+	universe := maliciousRuleUniverse(runs)
+
+	for _, cat := range categories {
+		printMaliciousMisses(runs, w, allow, block, minCategories, cat, top)
+
+		all := calibrate.MaliciousAllowsWithMinCategories(runs, w, allow, block, minCategories)
+		fired := map[string]struct{}{}
+		missCount := 0
+		for _, m := range all {
+			if m.Run.Category != cat {
+				continue
+			}
+			missCount++
+			for _, r := range m.Rules {
+				fired[r] = struct{}{}
+			}
+		}
+		if missCount == 0 {
+			continue
+		}
+
+		silent := make([]string, 0)
+		for r := range universe {
+			if _, ok := fired[r]; !ok {
+				silent = append(silent, r)
+			}
+		}
+		sort.Strings(silent)
+		fmt.Printf("rules silent on these misses [%s] (fire on other malicious runs but never on any %d %s miss):\n",
+			cat, missCount, cat)
+		if len(silent) == 0 {
+			fmt.Println("  (none - every malicious-class detector fired on at least one miss)")
+			continue
+		}
+		for _, r := range silent {
+			fmt.Printf("  %s\n", r)
+		}
+	}
+}
+
+func maliciousCategories(runs []*calibrate.PackageRun) []string {
+	seen := map[string]struct{}{}
+	for _, r := range runs {
+		if r.Label != calibrate.LabelMalicious {
+			continue
+		}
+		key := r.Category
+		if key == "" {
+			key = "(uncategorised)"
+		}
+		seen[key] = struct{}{}
+	}
+	out := make([]string, 0, len(seen))
+	for k := range seen {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// maliciousRuleUniverse returns the set of rule names that fire on at least
+// one malicious-labelled run in the corpus. This is the "arsenal that works
+// against malware in general"; the silent-rules diagnostic compares against
+// this set so coverage gaps surface as "rule R catches other malware but
+// never this category".
+func maliciousRuleUniverse(runs []*calibrate.PackageRun) map[string]struct{} {
+	out := map[string]struct{}{}
+	for _, r := range runs {
+		if r.Label != calibrate.LabelMalicious {
+			continue
+		}
+		for _, s := range r.Signals {
+			out[s.Rule] = struct{}{}
+		}
+	}
+	return out
 }
 
 func rate(n, d int) float64 {

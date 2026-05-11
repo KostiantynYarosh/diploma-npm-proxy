@@ -16,6 +16,9 @@ var TunableRules = []string{
 	"typosquat_close",
 	"typosquat_warn",
 	"typosquat_ascii_homoglyph",
+	"typosquat_combosquat",
+	"typosquat_scope_close",
+	"typosquat_scope_warn",
 	"metadata_new_package",
 	"metadata_young_maintainer",
 	"metadata_low_downloads",
@@ -62,6 +65,9 @@ func DefaultWeights(cfg *config.Config) Weights {
 		"typosquat_close":           cfg.Layer1.TyposquatCloseScore,
 		"typosquat_warn":            cfg.Layer1.TyposquatWarnScore,
 		"typosquat_ascii_homoglyph": cfg.Layer1.TyposquatASCIIHomoglyphScore,
+		"typosquat_combosquat":      cfg.Layer1.TyposquatCombosquatScore,
+		"typosquat_scope_close":     cfg.Layer1.TyposquatScopeCloseScore,
+		"typosquat_scope_warn":      cfg.Layer1.TyposquatScopeWarnScore,
 
 		"metadata_new_package":       cfg.Layer1.MetadataNewPackageScore,
 		"metadata_young_maintainer":  cfg.Layer1.MetadataYoungMaintainerScore,
@@ -153,6 +159,9 @@ func (w Weights) ApplyToConfig(cfg *config.Config) {
 	set("typosquat_close", &cfg.Layer1.TyposquatCloseScore)
 	set("typosquat_warn", &cfg.Layer1.TyposquatWarnScore)
 	set("typosquat_ascii_homoglyph", &cfg.Layer1.TyposquatASCIIHomoglyphScore)
+	set("typosquat_combosquat", &cfg.Layer1.TyposquatCombosquatScore)
+	set("typosquat_scope_close", &cfg.Layer1.TyposquatScopeCloseScore)
+	set("typosquat_scope_warn", &cfg.Layer1.TyposquatScopeWarnScore)
 
 	set("metadata_new_package", &cfg.Layer1.MetadataNewPackageScore)
 	set("metadata_young_maintainer", &cfg.Layer1.MetadataYoungMaintainerScore)

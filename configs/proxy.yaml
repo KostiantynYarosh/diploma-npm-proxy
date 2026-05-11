@@ -32,6 +32,9 @@ layer1:
   typosquat_warn_distance: 2
   typosquat_warn_score: 0.30
   typosquat_ascii_homoglyph_score: 0.65  # strong signal, not veto - lets policy engine combine with other signals
+  typosquat_combosquat_score: 0.20       # popular-name segment found inside multi-part name ("react-helper", "axios-fake")
+  typosquat_scope_close_score: 0.55      # @scope edit-distance 1 from popular scope ("@bavel" vs "@babel")
+  typosquat_scope_warn_score: 0.25       # @scope edit-distance 2 from popular scope
   metadata_new_package_days: 7
   metadata_new_package_score: 0.20
   metadata_young_maintainer_days: 30

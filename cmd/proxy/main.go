@@ -75,11 +75,16 @@ func main() {
 
 	typoChecker, err := layer1.NewTyposquatChecker(
 		cfg.Layer1.Top10kPath,
-		cfg.Layer1.TyposquatCloseDistance,
-		cfg.Layer1.TyposquatCloseScore,
-		cfg.Layer1.TyposquatWarnDistance,
-		cfg.Layer1.TyposquatWarnScore,
-		cfg.Layer1.TyposquatASCIIHomoglyphScore,
+		layer1.TyposquatOptions{
+			CloseDistance:       cfg.Layer1.TyposquatCloseDistance,
+			CloseScore:          cfg.Layer1.TyposquatCloseScore,
+			WarnDistance:        cfg.Layer1.TyposquatWarnDistance,
+			WarnScore:           cfg.Layer1.TyposquatWarnScore,
+			ASCIIHomoglyphScore: cfg.Layer1.TyposquatASCIIHomoglyphScore,
+			CombosquatScore:     cfg.Layer1.TyposquatCombosquatScore,
+			ScopeCloseScore:     cfg.Layer1.TyposquatScopeCloseScore,
+			ScopeWarnScore:      cfg.Layer1.TyposquatScopeWarnScore,
+		},
 	)
 	if err != nil {
 		log.Fatalf("load top10k list: %v", err)

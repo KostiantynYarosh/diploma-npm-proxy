@@ -11,9 +11,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// WriteCSV dumps every trial as one row. Columns reflect the 2x3 metrics:
-// catch / block / hard_fp / soft_fp + the full benign/malicious breakdown,
-// followed by every weight key seen in the log (sorted).
+// WriteCSV dumps every trial as one row. Columns reflect the 2x3 metrics
+// split by tier so the dissertation can build separate tables for the strict
+// block tier (block_precision/block_recall/hard_fp) and the permissive warn
+// tier (warn_precision/warn_recall/soft_fp), plus the aggregate catch and the
+// full benign/malicious confusion counts. Followed by every weight key seen
+// in the log (sorted).
 func WriteCSV(path string, log []Trial, obj ScoreObjective) error {
 	f, err := os.Create(path)
 	if err != nil {
@@ -38,8 +41,9 @@ func WriteCSV(path string, log []Trial, obj ScoreObjective) error {
 
 	header := append([]string{
 		"trial", "score", "allow", "block", "min_categories",
-		"val_catch", "val_block_rate", "val_hard_fp", "val_soft_fp",
-		"val_block_precision", "val_warn_precision",
+		"val_catch",
+		"val_block_recall", "val_block_precision", "val_hard_fp",
+		"val_warn_recall", "val_warn_precision", "val_soft_fp",
 		"benign_allow", "benign_warn", "benign_block",
 		"malicious_allow", "malicious_warn", "malicious_block",
 	}, keys...)
@@ -57,10 +61,11 @@ func WriteCSV(path string, log []Trial, obj ScoreObjective) error {
 			strconv.Itoa(t.MinCategories),
 			fmt.Sprintf("%.4f", m.CatchRate()),
 			fmt.Sprintf("%.4f", m.BlockRate()),
-			fmt.Sprintf("%.4f", m.HardFPRate()),
-			fmt.Sprintf("%.4f", m.SoftFPRate()),
 			fmt.Sprintf("%.4f", m.BlockPrecision()),
+			fmt.Sprintf("%.4f", m.HardFPRate()),
+			fmt.Sprintf("%.4f", m.WarnRecall()),
 			fmt.Sprintf("%.4f", m.WarnPrecision()),
+			fmt.Sprintf("%.4f", m.SoftFPRate()),
 			strconv.Itoa(m.BenignAllow),
 			strconv.Itoa(m.BenignWarn),
 			strconv.Itoa(m.BenignBlock),

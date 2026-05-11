@@ -71,12 +71,24 @@ func (m Metrics) CatchRate() float64 {
 }
 
 // BlockRate is the fraction of malicious packages hard-blocked. The actually
-// stopped attacks; warned-but-installed packages don't count.
+// stopped attacks; warned-but-installed packages don't count. Equivalent to
+// recall for the block tier when reported alongside BlockPrecision.
 func (m Metrics) BlockRate() float64 {
 	if m.Malicious() == 0 {
 		return 0
 	}
 	return float64(m.MaliciousBlock) / float64(m.Malicious())
+}
+
+// WarnRecall is the fraction of malicious packages surfaced *only* via the
+// warn tier (excluding blocks). Reported separately from BlockRate so the
+// dissertation can quote a strict block-tier recall and a permissive warn-tier
+// recall as two distinct operating points instead of one aggregated catch.
+func (m Metrics) WarnRecall() float64 {
+	if m.Malicious() == 0 {
+		return 0
+	}
+	return float64(m.MaliciousWarn) / float64(m.Malicious())
 }
 
 // BlockPrecision: when we issue a hard block, how often is that block
@@ -138,9 +150,9 @@ type ScoreObjective struct {
 
 func (m Metrics) String() string {
 	return fmt.Sprintf(
-		"catch=%.3f block=%.3f hard_fp=%.3f soft_fp=%.3f block_precision=%.3f warn_precision=%.3f "+
+		"catch=%.3f block_recall=%.3f warn_recall=%.3f hard_fp=%.3f soft_fp=%.3f block_precision=%.3f warn_precision=%.3f "+
 			"[B:allow=%d warn=%d block=%d | M:allow=%d warn=%d block=%d]",
-		m.CatchRate(), m.BlockRate(), m.HardFPRate(), m.SoftFPRate(), m.BlockPrecision(), m.WarnPrecision(),
+		m.CatchRate(), m.BlockRate(), m.WarnRecall(), m.HardFPRate(), m.SoftFPRate(), m.BlockPrecision(), m.WarnPrecision(),
 		m.BenignAllow, m.BenignWarn, m.BenignBlock,
 		m.MaliciousAllow, m.MaliciousWarn, m.MaliciousBlock,
 	)

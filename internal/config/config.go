@@ -63,6 +63,9 @@ type Layer1Config struct {
 	TyposquatWarnDistance         int     `koanf:"typosquat_warn_distance" yaml:"typosquat_warn_distance"`
 	TyposquatWarnScore            float64 `koanf:"typosquat_warn_score" yaml:"typosquat_warn_score"`
 	TyposquatASCIIHomoglyphScore  float64 `koanf:"typosquat_ascii_homoglyph_score" yaml:"typosquat_ascii_homoglyph_score"`
+	TyposquatCombosquatScore      float64 `koanf:"typosquat_combosquat_score" yaml:"typosquat_combosquat_score"`
+	TyposquatScopeCloseScore      float64 `koanf:"typosquat_scope_close_score" yaml:"typosquat_scope_close_score"`
+	TyposquatScopeWarnScore       float64 `koanf:"typosquat_scope_warn_score" yaml:"typosquat_scope_warn_score"`
 	MetadataNewPackageDays        int     `koanf:"metadata_new_package_days" yaml:"metadata_new_package_days"`
 	MetadataNewPackageScore       float64 `koanf:"metadata_new_package_score" yaml:"metadata_new_package_score"`
 	MetadataYoungMaintainerDays   int     `koanf:"metadata_young_maintainer_days" yaml:"metadata_young_maintainer_days"`
