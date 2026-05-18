@@ -77,12 +77,7 @@ type Layer1Config struct {
 	MetadataPopularStaleScore     float64 `koanf:"metadata_popular_stale_score" yaml:"metadata_popular_stale_score"`
 	AnomalyMaxVersionsPerDay      int     `koanf:"anomaly_max_versions_per_day" yaml:"anomaly_max_versions_per_day"`
 	AnomalyVersionSpikeScore      float64 `koanf:"anomaly_version_spike_score" yaml:"anomaly_version_spike_score"`
-	AnomalyMaintainerChangeScore  float64 `koanf:"anomaly_maintainer_change_score" yaml:"anomaly_maintainer_change_score"`
-	AnomalyUnusualHoursScore      float64 `koanf:"anomaly_unusual_hours_score" yaml:"anomaly_unusual_hours_score"`
-	AnomalySizeDeviationScore     float64 `koanf:"anomaly_size_deviation_score" yaml:"anomaly_size_deviation_score"`
 	LicensePatchChangeScore       float64 `koanf:"license_patch_change_score" yaml:"license_patch_change_score"`
-	LicenseMissingPopScore        float64 `koanf:"license_missing_popular_score" yaml:"license_missing_popular_score"`
-	LicensePopularDownloads       int     `koanf:"license_popular_downloads" yaml:"license_popular_downloads"`
 }
 
 type Layer2Config struct {
@@ -100,9 +95,7 @@ type Layer3Config struct {
 	EntropyRatioThreshold         float64 `koanf:"entropy_ratio_threshold" yaml:"entropy_ratio_threshold"`
 	EntropyMinStringLen           int     `koanf:"entropy_min_string_len" yaml:"entropy_min_string_len"`
 	EntropyHexMinLen              int     `koanf:"entropy_hex_min_len" yaml:"entropy_hex_min_len"`
-	CapabilityNetScore            float64 `koanf:"capability_net_score" yaml:"capability_net_score"`
 	CapabilityExecScore           float64 `koanf:"capability_exec_score" yaml:"capability_exec_score"`
-	CapabilityFSSensScore         float64 `koanf:"capability_fs_sensitive_score" yaml:"capability_fs_sensitive_score"`
 	CapabilityDynEvalScore        float64 `koanf:"capability_dynamic_eval_score" yaml:"capability_dynamic_eval_score"`
 	CapabilityEnvReadScore        float64 `koanf:"capability_env_read_score" yaml:"capability_env_read_score"`
 	VersionDiffScriptAddedScore   float64 `koanf:"version_diff_script_added_score" yaml:"version_diff_script_added_score"`

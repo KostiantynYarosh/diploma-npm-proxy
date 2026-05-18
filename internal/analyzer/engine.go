@@ -39,9 +39,7 @@ func NewPostDownloadEngine(cfg *config.Config, regClient *registry.Client) *Post
 			ExternalURL:    cfg.Layer2.InstallScriptExternalURLScore,
 		}),
 		capabilities: layer3.NewCapabilityAnalyzer(
-			cfg.Layer3.CapabilityNetScore,
 			cfg.Layer3.CapabilityExecScore,
-			cfg.Layer3.CapabilityFSSensScore,
 			cfg.Layer3.CapabilityDynEvalScore,
 			cfg.Layer3.CapabilityEnvReadScore,
 		),

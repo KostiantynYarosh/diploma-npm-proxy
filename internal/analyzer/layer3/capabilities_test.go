@@ -8,7 +8,7 @@ import (
 )
 
 func TestCapabilities_ExecDetected(t *testing.T) {
-	a := NewCapabilityAnalyzer(0.15, 0.30, 0.25, 0.20, 0.10)
+	a := NewCapabilityAnalyzer(0.30, 0.20, 0.10)
 	tree := extractor.FileTree{
 		"package/index.js": []byte(`const cp = require('child_process'); cp.exec('ls');`),
 	}
@@ -25,25 +25,31 @@ func TestCapabilities_ExecDetected(t *testing.T) {
 	}
 }
 
-func TestCapabilities_NetDetected(t *testing.T) {
-	a := NewCapabilityAnalyzer(0.15, 0.30, 0.25, 0.20, 0.10)
+func TestCapabilities_NetDetectedNoSignal(t *testing.T) {
+	a := NewCapabilityAnalyzer(0.30, 0.20, 0.10)
 	tree := extractor.FileTree{
 		"package/index.js": []byte(`const https = require('https'); https.get('http://x');`),
 	}
-	_, caps := a.Analyze(context.Background(), tree)
-	found := false
+	sigs, caps := a.Analyze(context.Background(), tree)
+
+	netInCaps := false
 	for _, c := range caps {
 		if c == CapNet {
-			found = true
+			netInCaps = true
 		}
 	}
-	if !found {
-		t.Errorf("expected CapNet, got %v", caps)
+	if !netInCaps {
+		t.Errorf("CapNet must remain in capList for version-diff tracking; caps=%v", caps)
+	}
+	for _, s := range sigs {
+		if s.Rule == "capability_net_access" {
+			t.Errorf("capability_net_access signal must no longer be emitted; got %+v", s)
+		}
 	}
 }
 
 func TestCapabilities_CleanFileNoSignal(t *testing.T) {
-	a := NewCapabilityAnalyzer(0.15, 0.30, 0.25, 0.20, 0.10)
+	a := NewCapabilityAnalyzer(0.30, 0.20, 0.10)
 	tree := extractor.FileTree{
 		"package/index.js": []byte(`module.exports = function add(a,b){return a+b};`),
 	}

@@ -27,11 +27,15 @@ import (
 )
 
 const (
-	dest         = "dataset/benign"
-	defaultList  = "configs/top10k.txt"
-	httpTimeout  = 60 * time.Second
+	dest        = "dataset/benign"
+	defaultList = "configs/top10k.txt"
+	// httpTimeout is intentionally large: native-CLI/native-binding packages
+	// (puppeteer, playwright, electron) routinely ship 100-250 MB tarballs and
+	// the npm CDN can be slow on them. A shorter timeout silently truncates
+	// the benign corpus to small packages, biasing the FP-rate metric.
+	httpTimeout  = 5 * time.Minute
 	metaLimit    = 100 * 1024 * 1024
-	tarballLimit = 100 * 1024 * 1024
+	tarballLimit = 500 * 1024 * 1024 // 500 MB — matches the production proxy envelope for large native packages
 )
 
 type registryDoc struct {

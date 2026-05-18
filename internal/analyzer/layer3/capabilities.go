@@ -9,16 +9,18 @@ import (
 	"github.com/yourusername/npm-proxy/internal/signal"
 )
 
-// Capability categories.
+// Capability categories. CapNet is detected but no longer emits a standalone
+// signal: calibration zeroed `capability_net_access` across every profile
+// because plain network access fires on too many legitimate packages
+// (frameworks, HTTP clients, telemetry libs). The capability is still tracked
+// here because version-diff comparison needs it to flag a *newly introduced*
+// network call in a patch release - see version_diff_new_net_in_patch.
 const (
 	CapNet     = "net_access"
 	CapExec    = "exec"
-	CapFSSens  = "fs_sensitive"
 	CapDynEval = "dynamic_eval"
 	CapEnvRead = "env_read"
 )
-
-var sensitivePaths = []string{"/etc/passwd", "/etc/shadow", ".ssh", ".npmrc", ".env"}
 
 // Import-shape patterns. They MUST be matched on a comments-stripped (but
 // strings-preserved) source: the literal module name has to be visible. Both
@@ -32,9 +34,6 @@ var (
 	reImportExec = regexp.MustCompile(
 		`require\s*\(\s*['"]child_process['"]\s*\)` +
 			`|from\s+['"]child_process['"]`)
-	reImportFS = regexp.MustCompile(
-		`require\s*\(\s*['"]fs(?:/promises)?['"]\s*\)` +
-			`|from\s+['"]fs(?:/promises)?['"]`)
 )
 
 // Call-shape patterns. They are matched on a fully-stripped source (comments
@@ -48,25 +47,22 @@ var (
 )
 
 type CapabilityAnalyzer struct {
-	netScore     float64
 	execScore    float64
-	fsSensScore  float64
 	dynEvalScore float64
 	envReadScore float64
 }
 
-func NewCapabilityAnalyzer(net, exec, fsSens, dynEval, envRead float64) *CapabilityAnalyzer {
+func NewCapabilityAnalyzer(exec, dynEval, envRead float64) *CapabilityAnalyzer {
 	return &CapabilityAnalyzer{
-		netScore:     net,
 		execScore:    exec,
-		fsSensScore:  fsSens,
 		dynEvalScore: dynEval,
 		envReadScore: envRead,
 	}
 }
 
-// Analyze scans all JS/TS files in the tree and returns detected capability signals.
-// Returns the capability names alongside signals so the engine can cache them.
+// Analyze scans all JS/TS files in the tree and returns detected capability
+// signals plus the full list of detected capabilities (including CapNet,
+// which has no own signal but feeds version-diff). The caller caches both.
 func (a *CapabilityAnalyzer) Analyze(_ context.Context, tree extractor.FileTree) ([]signal.Signal, []string) {
 	caps := make(map[string]bool)
 
@@ -76,7 +72,6 @@ func (a *CapabilityAnalyzer) Analyze(_ context.Context, tree extractor.FileTree)
 		}
 		detectCapabilities(string(content), caps)
 		if len(caps) == len(allCaps) {
-			// All capabilities already set; skip the remaining files.
 			break
 		}
 	}
@@ -89,9 +84,7 @@ func (a *CapabilityAnalyzer) Analyze(_ context.Context, tree extractor.FileTree)
 		rule  string
 		cwe   string
 	}{
-		CapNet:     {a.netScore, "capability_net_access", "CWE-918"},
 		CapExec:    {a.execScore, "capability_exec", "CWE-78"},
-		CapFSSens:  {a.fsSensScore, "capability_fs_sensitive", "CWE-22"},
 		CapDynEval: {a.dynEvalScore, "capability_dynamic_eval", "CWE-94"},
 		CapEnvRead: {a.envReadScore, "capability_env_read", ""},
 	}
@@ -113,7 +106,7 @@ func (a *CapabilityAnalyzer) Analyze(_ context.Context, tree extractor.FileTree)
 	return signals, capList
 }
 
-var allCaps = []string{CapNet, CapExec, CapFSSens, CapDynEval, CapEnvRead}
+var allCaps = []string{CapNet, CapExec, CapDynEval, CapEnvRead}
 
 // detectCapabilities walks one source file and updates the capability set.
 // Two scrubbed views of the source are used:
@@ -137,14 +130,6 @@ func detectCapabilities(src string, caps map[string]bool) {
 	}
 	if !caps[CapExec] && reImportExec.MatchString(noComments) {
 		caps[CapExec] = true
-	}
-	if !caps[CapFSSens] && reImportFS.MatchString(noComments) {
-		for _, sp := range sensitivePaths {
-			if strings.Contains(noComments, sp) {
-				caps[CapFSSens] = true
-				break
-			}
-		}
 	}
 
 	if !caps[CapDynEval] &&

@@ -24,10 +24,6 @@ var TunableRules = []string{
 	"metadata_low_downloads",
 	"metadata_popular_but_stale",
 	"anomaly_release_burst",
-	"anomaly_maintainer_change",
-	"anomaly_unusual_publish_hour",
-	"anomaly_size_spike",
-	"license_missing",
 	"license_changed_in_patch",
 	// Layer 2 (curl_sh / wget_sh are veto - excluded)
 	"install_script_present",
@@ -38,9 +34,7 @@ var TunableRules = []string{
 	"install_script_dynamic_require",
 	"install_script_external_url",
 	// Layer 3
-	"cap_net",
 	"cap_exec",
-	"cap_fs_sensitive",
 	"cap_dynamic_eval",
 	"cap_env_read",
 	"entropy_obfuscation",
@@ -74,12 +68,8 @@ func DefaultWeights(cfg *config.Config) Weights {
 		"metadata_low_downloads":     cfg.Layer1.MetadataLowDownloadsScore,
 		"metadata_popular_but_stale": cfg.Layer1.MetadataPopularStaleScore,
 
-		"anomaly_release_burst":        cfg.Layer1.AnomalyVersionSpikeScore,
-		"anomaly_maintainer_change":    cfg.Layer1.AnomalyMaintainerChangeScore,
-		"anomaly_unusual_publish_hour": cfg.Layer1.AnomalyUnusualHoursScore,
-		"anomaly_size_spike":           cfg.Layer1.AnomalySizeDeviationScore,
+		"anomaly_release_burst": cfg.Layer1.AnomalyVersionSpikeScore,
 
-		"license_missing":          cfg.Layer1.LicenseMissingPopScore,
 		"license_changed_in_patch": cfg.Layer1.LicensePatchChangeScore,
 
 		"install_script_present":         cfg.Layer2.InstallScriptPresentScore,
@@ -90,9 +80,7 @@ func DefaultWeights(cfg *config.Config) Weights {
 		"install_script_dynamic_require": cfg.Layer2.InstallScriptDynamicRequireScore,
 		"install_script_external_url":    cfg.Layer2.InstallScriptExternalURLScore,
 
-		"cap_net":          cfg.Layer3.CapabilityNetScore,
 		"cap_exec":         cfg.Layer3.CapabilityExecScore,
-		"cap_fs_sensitive": cfg.Layer3.CapabilityFSSensScore,
 		"cap_dynamic_eval": cfg.Layer3.CapabilityDynEvalScore,
 		"cap_env_read":     cfg.Layer3.CapabilityEnvReadScore,
 
@@ -169,11 +157,7 @@ func (w Weights) ApplyToConfig(cfg *config.Config) {
 	set("metadata_popular_but_stale", &cfg.Layer1.MetadataPopularStaleScore)
 
 	set("anomaly_release_burst", &cfg.Layer1.AnomalyVersionSpikeScore)
-	set("anomaly_maintainer_change", &cfg.Layer1.AnomalyMaintainerChangeScore)
-	set("anomaly_unusual_publish_hour", &cfg.Layer1.AnomalyUnusualHoursScore)
-	set("anomaly_size_spike", &cfg.Layer1.AnomalySizeDeviationScore)
 
-	set("license_missing", &cfg.Layer1.LicenseMissingPopScore)
 	set("license_changed_in_patch", &cfg.Layer1.LicensePatchChangeScore)
 
 	set("install_script_present", &cfg.Layer2.InstallScriptPresentScore)
@@ -184,9 +168,7 @@ func (w Weights) ApplyToConfig(cfg *config.Config) {
 	set("install_script_dynamic_require", &cfg.Layer2.InstallScriptDynamicRequireScore)
 	set("install_script_external_url", &cfg.Layer2.InstallScriptExternalURLScore)
 
-	set("cap_net", &cfg.Layer3.CapabilityNetScore)
 	set("cap_exec", &cfg.Layer3.CapabilityExecScore)
-	set("cap_fs_sensitive", &cfg.Layer3.CapabilityFSSensScore)
 	set("cap_dynamic_eval", &cfg.Layer3.CapabilityDynEvalScore)
 	set("cap_env_read", &cfg.Layer3.CapabilityEnvReadScore)
 

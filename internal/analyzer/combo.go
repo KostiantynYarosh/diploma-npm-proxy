@@ -98,9 +98,10 @@ func isExecRule(rule string) bool {
 }
 
 func isNetworkRule(rule string) bool {
-	return rule == "capability_net_access" ||
-		rule == "cap_net" ||
-		strings.HasPrefix(rule, "install_script_external_url_")
+	// capability_net_access was removed from the signal set (calibrator zeroed
+	// its weight across every profile). The network-combo signal now triggers
+	// solely on lifecycle-script-borne network indicators.
+	return strings.HasPrefix(rule, "install_script_external_url_")
 }
 
 func isObfuscationRule(rule string) bool {

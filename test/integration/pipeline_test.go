@@ -50,7 +50,7 @@ func newInstallScripts() *layer2.InstallScriptAnalyzer {
 }
 
 func newCapabilities() *layer3.CapabilityAnalyzer {
-	return layer3.NewCapabilityAnalyzer(0.15, 0.30, 0.25, 0.20, 0.10)
+	return layer3.NewCapabilityAnalyzer(0.30, 0.20, 0.10)
 }
 
 func newEntropy() *layer3.EntropyAnalyzer {

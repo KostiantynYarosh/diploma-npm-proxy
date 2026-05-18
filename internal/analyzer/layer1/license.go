@@ -2,60 +2,48 @@ package layer1
 
 import (
 	"context"
-	"strings"
 
 	"github.com/yourusername/npm-proxy/internal/registry"
 	"github.com/yourusername/npm-proxy/internal/semverutil"
 	"github.com/yourusername/npm-proxy/internal/signal"
 )
 
+// LicenseChecker emits a single signal: license_patch_change. The
+// license_missing rule was removed after calibration consistently zeroed it
+// across multiple profile runs - missing-license alone has too little
+// discriminative power on real npm corpus to survive the FP cap.
 type LicenseChecker struct {
-	patchChangeScore    float64
-	missingPopScore     float64
-	popularDownloads    int
+	patchChangeScore float64
 }
 
-func NewLicenseChecker(patchChangeScore, missingPopScore float64, popularDownloads int) *LicenseChecker {
-	return &LicenseChecker{
-		patchChangeScore: patchChangeScore,
-		missingPopScore:  missingPopScore,
-		popularDownloads: popularDownloads,
-	}
+func NewLicenseChecker(patchChangeScore float64) *LicenseChecker {
+	return &LicenseChecker{patchChangeScore: patchChangeScore}
 }
 
 func (l *LicenseChecker) Check(_ context.Context, meta *registry.PackageMeta, version string) []signal.Signal {
-	var signals []signal.Signal
-
 	current, ok := meta.Versions[version]
 	if !ok {
 		return nil
 	}
 
-	// Missing license field in current version.
-	if strings.TrimSpace(string(current.License)) == "" {
-		signals = append(signals, signal.Signal{
-			Rule:  "license_missing",
-			Score: l.missingPopScore,
-		})
-	}
-
-	// License changed between this version and the previous one.
 	prevVer := semverutil.PreviousVersion(allVersions(meta), version)
-	if prevVer != "" {
-		if prev, ok := meta.Versions[prevVer]; ok {
-			if prev.License != "" && current.License != "" && prev.License != current.License {
-				// Score higher if the change happens in a patch version bump.
-				if semverutil.IsPatchBump(prevVer, version) {
-					signals = append(signals, signal.Signal{
-						Rule:  "license_patch_change",
-						Score: l.patchChangeScore,
-					})
-				}
-			}
-		}
+	if prevVer == "" {
+		return nil
 	}
-
-	return signals
+	prev, ok := meta.Versions[prevVer]
+	if !ok || prev.License == "" || current.License == "" {
+		return nil
+	}
+	if prev.License == current.License {
+		return nil
+	}
+	if !semverutil.IsPatchBump(prevVer, version) {
+		return nil
+	}
+	return []signal.Signal{{
+		Rule:  "license_patch_change",
+		Score: l.patchChangeScore,
+	}}
 }
 
 // allVersions returns every version key present in the metadata's versions map -

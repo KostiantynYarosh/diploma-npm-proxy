@@ -38,18 +38,16 @@
 | Шар | Файл | Rule | Veto | CWE | Що виявляє |
 |-----|------|------|------|-----|------------|
 | 1 | [layer1/osv.go](internal/analyzer/layer1/osv.go) | `osv_known_vulnerability` | так | CWE-1035 | відомі вразливості з OSV.dev |
-| 1 | [layer1/typosquatting.go](internal/analyzer/layer1/typosquatting.go) | `typosquat_close` / `typosquat_warn` | ні | CWE-1035 | імена близькі до top-10k за Damerau-Levenshtein (close = відстань 1, warn = відстань 2) |
+| 1 | [layer1/typosquatting.go](internal/analyzer/layer1/typosquatting.go) | `typosquat_close` / `typosquat_warn` | ні | CWE-1035 | імена близькі до top-10k; BK-tree (Levenshtein, ≤ warn_distance) → Damerau-Levenshtein refinement (close = відстань 1, warn = відстань 2) |
 | 1 | [layer1/typosquatting.go](internal/analyzer/layer1/typosquatting.go) | `typosquat_ascii_homoglyph` | ні | CWE-1035 | заміна цифр/символів у назві (`react0`, `l0dash`) |
+| 1 | [layer1/typosquatting.go](internal/analyzer/layer1/typosquatting.go) | `typosquat_combosquat` | ні | CWE-1035 | популярний пакет як сегмент складеного імені (`react-fake`, `axios-utils`, `eth-keycontroler`) — ловить combosquat, до якого edit-distance сліпий |
+| 1 | [layer1/typosquatting.go](internal/analyzer/layer1/typosquatting.go) | `typosquat_scope_close` / `typosquat_scope_warn` | ні | CWE-1035 | scope близький до популярного scope (`@bavel` vs `@babel`, `@typess` vs `@types`); список scopes дериватив з top10k |
 | 1 | [layer1/metadata.go](internal/analyzer/layer1/metadata.go) | `metadata_new_package` | ні | - | пакет опублікований менше N днів тому |
 | 1 | [layer1/metadata.go](internal/analyzer/layer1/metadata.go) | `metadata_young_maintainer` | ні | - | обліковий запис мейнтейнера молодший N днів |
 | 1 | [layer1/metadata.go](internal/analyzer/layer1/metadata.go) | `metadata_single_maintainer` | ні | - | пакет має лише одного мейнтейнера |
 | 1 | [layer1/metadata.go](internal/analyzer/layer1/metadata.go) | `metadata_low_downloads` | ні | - | менше порогових завантажень на місяць |
 | 1 | [layer1/metadata.go](internal/analyzer/layer1/metadata.go) | `metadata_popular_but_stale` | ні | - | популярний пакет без оновлень понад N днів |
 | 1 | [layer1/anomaly.go](internal/analyzer/layer1/anomaly.go) | `anomaly_version_spike` | ні | - | кілька версій у короткий проміжок часу |
-| 1 | [layer1/anomaly.go](internal/analyzer/layer1/anomaly.go) | `anomaly_maintainer_change` | ні | - | мейнтейнер змінився після попереднього релізу |
-| 1 | [layer1/anomaly.go](internal/analyzer/layer1/anomaly.go) | `anomaly_unusual_publish_hour` | ні | - | публікація поза звичним вікном активності |
-| 1 | [layer1/anomaly.go](internal/analyzer/layer1/anomaly.go) | `anomaly_size_deviation` | ні | - | розмір tarball аномально більший за попередні |
-| 1 | [layer1/license.go](internal/analyzer/layer1/license.go) | `license_missing` | ні | - | поле `license` відсутнє або порожнє |
 | 1 | [layer1/license.go](internal/analyzer/layer1/license.go) | `license_patch_change` | ні | - | ліцензія змінилась у patch-релізі |
 | 2 | [layer2/install_scripts.go](internal/analyzer/layer2/install_scripts.go) | `install_script_present_<hook>` | ні | CWE-506 | будь-який непорожній lifecycle-скрипт (preinstall/install/postinstall/prepare) |
 | 2 | [layer2/install_scripts.go](internal/analyzer/layer2/install_scripts.go) | `install_script_curl_pipe_<hook>` / `install_script_wget_pipe_<hook>` | так | CWE-506 | `curl\|sh` / `wget\|sh` - pipe-виконання скрипта з мережі |
@@ -60,8 +58,6 @@
 | 2 | [layer2/install_scripts.go](internal/analyzer/layer2/install_scripts.go) | `install_script_dynamic_require_<hook>` | ні | CWE-506 | `require(variable)` у lifecycle-скрипті |
 | 2 | [layer2/install_scripts.go](internal/analyzer/layer2/install_scripts.go) | `install_script_external_url_<hook>` | ні | CWE-506 | http/https-посилання у lifecycle-скрипті |
 | 3 | [layer3/capabilities.go](internal/analyzer/layer3/capabilities.go) | `capability_exec` | ні | CWE-78 | `child_process.exec/spawn` у коді |
-| 3 | [layer3/capabilities.go](internal/analyzer/layer3/capabilities.go) | `capability_net_access` | ні | CWE-918 | мережеві виклики (`http`, `https`, `net`) |
-| 3 | [layer3/capabilities.go](internal/analyzer/layer3/capabilities.go) | `capability_fs_sensitive` | ні | CWE-22 | доступ до чутливих шляхів (`/etc/passwd`, `~/.ssh`) |
 | 3 | [layer3/capabilities.go](internal/analyzer/layer3/capabilities.go) | `capability_dynamic_eval` | ні | CWE-94 | `eval`, `new Function`, `vm.runIn*` |
 | 3 | [layer3/capabilities.go](internal/analyzer/layer3/capabilities.go) | `capability_env_read` | ні | - | читання змінних оточення (`process.env`) |
 | 3 | [layer3/entropy.go](internal/analyzer/layer3/entropy.go) | `obfuscation_high_entropy` | ні | CWE-506 | Shannon entropy > порогу або base64/hex ratio |
@@ -78,6 +74,8 @@
 | 4 | [policy/engine.go](internal/policy/engine.go) | - | - | - | агрегує сигнали, застосовує veto та пороги |
 
 Score-ваги в таблиці навмисно опущені: вони не є константами, а підбираються офлайн-калібратором (див. секцію «Калібрація ваг») під жорсткі cap-и на benign-block / benign-warn rate і записуються в [configs/proxy.yaml](configs/proxy.yaml) - тому будь-яке конкретне число тут одразу б розходилось з конфігом після наступного прогону. Veto-сигнали (`osv_known_vulnerability`, `install_script_curl_pipe_*`, `install_script_wget_pipe_*`) калібрації не підлягають - вони завжди дають вердикт BLOCK незалежно від ваг.
+
+Кілька раніше задуманих правил було вилучено після того, як калібратор стабільно занулював їхні ваги на кількох операційних профілях через надмірний внесок у FP-бюджет: `anomaly_maintainer_change`, `anomaly_unusual_publish_hour`, `anomaly_size_deviation`, `license_missing`, `capability_net_access` (як окремий сигнал; детекція CapNet збережена для `version_diff_new_net_in_patch`), `capability_fs_sensitive`. Це не означає що сигнали безкорисні в принципі - на ширшому корпусі з реальною плинністю мейнтейнерів і явним базовим розподілом publish-hour вони можуть повернутись.
 
 ### Формула ризику
 
@@ -320,15 +318,15 @@ docker compose -f deployments/docker-compose.yml up -d --build
 - **Network-залежні Layer 1 сигнали вимкнені** (downloads, maintainer-age) - у корпусі немає їх snapshot-ів. Ваги цих rules лишаються 0 і не впливають на пошук. Щоб увімкнути - розширити import tools snapshot-ами цих API і полями в `labels.jsonl`.
 - **OSV-вето домінує над scored-сигналами** - якщо більшість malicious у корпусі мають OSV-match, інші детектори майже не калібруються. Запусти калібрацію з `-strip-osv` щоб побачити чесну картину сигнатурного стеку. Для layer 2/3 найцінніші `malicious_intent` зразки без OSV-відомості.
 - **Per-category breakdown** - `calibrate` друкує метрики окремо для `compromised_lib`, `malicious_intent`, `popular`, `(uncategorised)`. Якщо `malicious_intent` catch сильно нижчий - це реальна діра в евристиках, а не проблема OSV.
-- **Малий benign validation шумить FP** - якщо у val лише ~139 benign, один warning рухає `warn_fp` на ~0.007. Для стабільного FP потрібні тисячі benign-пакетів (`import-benign -top 5000/10000`), особливо CLI/native/build/devtool пакети з install scripts.
+- **Розмір benign-сплиту впливає на статистичну точність FP** - на ~2k benign у val один помилковий warn = ~0.05% soft_fp; для жорстких порівнянь профілів варто тримати ≥5k benign і явно вказувати observed-FP як «N з M» поряд з відсотком. Особливо важливо включати CLI/native/build/devtool пакети з install scripts, бо саме вони — головне джерело реальних false-positive.
 - **Class imbalance** - у проді частка malicious << 1%, наш ~50/50 split дає оптимістичну precision. Інтерпретуй метрики з поправкою на prior.
 
 ## Обмеження та future work
 
 - Аналіз коду виконується regex-патернами з валідацією синтаксису через esbuild - повний AST walk залишений як future work
 - Динамічний аналіз (sandbox-виконання install-скриптів) не реалізовано
-- BK-tree індексація top-10k не реалізована - наразі лінійне сканування з length-pruning, прийнятне в межах 500 ms бюджету Layer 1
+- Typosquat-пошук імплементовано через BK-tree на Levenshtein з рефайнментом Damerau-Levenshtein — O(log N) lookup, дозволяє розширення top-N без CPU-впливу
 - Top-10k список може генеруватись вручну через `tools/gen-top10k`; `tools/import-benign` автоматично запускає генерацію, якщо `configs/top10k.txt` відсутній або замалий
-- Калібратор ваг є (див. секцію «Калібрація ваг»), benign/DataDog імпорт автоматизований; варто додати імпорт з GHSA / Backstabber-IO для ширшого malicious corpus
+- Калібратор ваг є (див. секцію «Калібрація ваг»), benign/DataDog імпорт автоматизований; варто додати імпорт з Backstabber's Knife Collection або MalOSS для ширшого malicious corpus з типологією
 - Network-залежні Layer 1 сигнали (downloads, maintainer-age) у калібраторі вимкнені - потрібен snapshot цих API в датасеті
 - Спробувати імплементувати ШІ

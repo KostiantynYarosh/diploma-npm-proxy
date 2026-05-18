@@ -78,16 +78,10 @@ func WeightKey(rule string) string {
 	switch rule {
 	case "anomaly_version_spike":
 		return "anomaly_release_burst"
-	case "anomaly_size_deviation":
-		return "anomaly_size_spike"
 	case "license_patch_change":
 		return "license_changed_in_patch"
-	case "capability_net_access":
-		return "cap_net"
 	case "capability_exec":
 		return "cap_exec"
-	case "capability_fs_sensitive":
-		return "cap_fs_sensitive"
 	case "capability_dynamic_eval":
 		return "cap_dynamic_eval"
 	case "capability_env_read":

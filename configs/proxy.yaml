@@ -1,7 +1,7 @@
 proxy:
   listen_addr: ":8080"
   upstream_url: "https://registry.npmjs.org"
-  max_tarball_bytes: 52428800   # 50 MB
+  max_tarball_bytes: 524288000  # 500 MiB — single .tgz size cap, covers all realistic native/asset packages
   analysis_timeout_sec: 15
 
 registry:
@@ -46,12 +46,7 @@ layer1:
   metadata_popular_stale_score: 0.15
   anomaly_max_versions_per_day: 5
   anomaly_version_spike_score: 0.20
-  anomaly_maintainer_change_score: 0.30
-  anomaly_unusual_hours_score: 0.10
-  anomaly_size_deviation_score: 0.15
   license_patch_change_score: 0.15
-  license_missing_popular_score: 0.10
-  license_popular_downloads: 10000
 
 # Layer 2 - manifest & archive
 layer2:
@@ -69,9 +64,7 @@ layer3:
   entropy_ratio_threshold: 0.20
   entropy_min_string_len: 64                 # min length for entropy/base64 candidacy of a string literal
   entropy_hex_min_len: 64                    # min run of hex chars to be flagged as a packed payload
-  capability_net_score: 0.15
   capability_exec_score: 0.30
-  capability_fs_sensitive_score: 0.25
   capability_dynamic_eval_score: 0.20
   capability_env_read_score: 0.10
   version_diff_script_added_score: 0.40

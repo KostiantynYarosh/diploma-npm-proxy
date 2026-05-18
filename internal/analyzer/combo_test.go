@@ -11,7 +11,7 @@ func TestAddComboSignals(t *testing.T) {
 	result.Add(signal.Signal{Rule: "typosquat_warn", Score: 0.1})
 	result.Add(signal.Signal{Rule: "install_script_present", Score: 0.1})
 	result.Add(signal.Signal{Rule: "capability_exec", Score: 0.1})
-	result.Add(signal.Signal{Rule: "capability_net_access", Score: 0.1})
+	result.Add(signal.Signal{Rule: "install_script_external_url_postinstall", Score: 0.1})
 	result.Add(signal.Signal{Rule: "obfuscation_high_entropy", Score: 0.1})
 
 	AddComboSignals(result, ComboScores{

@@ -45,28 +45,24 @@ func TestApplyUsesWeights(t *testing.T) {
 func TestApplyMapsConcreteDetectorRulesToTunableWeights(t *testing.T) {
 	r := makeRun("susp", LabelMalicious, []string{
 		"capability_exec",
-		"capability_net_access",
 		"obfuscation_high_entropy",
 		"install_script_external_url_preinstall",
 		"version_diff_new_script_postinstall",
 		"sink_eval",
 		"anomaly_version_spike",
-		"anomaly_size_deviation",
 		"license_patch_change",
 	}, false)
 	d := Apply(r, Weights{
 		"cap_exec":                         0.05,
-		"cap_net":                          0.05,
 		"entropy_obfuscation":              0.05,
 		"install_script_external_url":      0.05,
 		"version_diff_new_script_in_patch": 0.05,
 		"sink_alone":                       0.05,
 		"anomaly_release_burst":            0.05,
-		"anomaly_size_spike":               0.05,
 		"license_changed_in_patch":         0.05,
 	}, 0.30, 0.70)
-	if math.Abs(d.Score-0.45) > 1e-9 {
-		t.Fatalf("mapped score: got %.2f want 0.45", d.Score)
+	if math.Abs(d.Score-0.35) > 1e-9 {
+		t.Fatalf("mapped score: got %.2f want 0.35", d.Score)
 	}
 	if d.Verdict.String() != "warn" {
 		t.Fatalf("mapped score should cross warn threshold, got %s", d.Verdict)

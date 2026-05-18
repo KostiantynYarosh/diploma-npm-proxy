@@ -5,6 +5,8 @@ coverage.txt
 coverage.html
 *.exe
 
+docs/
+
 # Manual testing artifacts
 *.tgz
 npm-test/

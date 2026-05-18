@@ -90,18 +90,11 @@ func NewRunner(cfg *config.Config) (*Runner, error) {
 	})
 
 	anomaly := layer1.NewAnomalyChecker(layer1.AnomalyCheckerOptions{
-		MaxVersionsPerDay:     cfg.Layer1.AnomalyMaxVersionsPerDay,
-		VersionSpikeScore:     cfg.Layer1.AnomalyVersionSpikeScore,
-		MaintainerChangeScore: cfg.Layer1.AnomalyMaintainerChangeScore,
-		UnusualHoursScore:     cfg.Layer1.AnomalyUnusualHoursScore,
-		SizeDeviationScore:    cfg.Layer1.AnomalySizeDeviationScore,
+		MaxVersionsPerDay: cfg.Layer1.AnomalyMaxVersionsPerDay,
+		VersionSpikeScore: cfg.Layer1.AnomalyVersionSpikeScore,
 	})
 
-	lic := layer1.NewLicenseChecker(
-		cfg.Layer1.LicensePatchChangeScore,
-		cfg.Layer1.LicenseMissingPopScore,
-		cfg.Layer1.LicensePopularDownloads,
-	)
+	lic := layer1.NewLicenseChecker(cfg.Layer1.LicensePatchChangeScore)
 
 	return &Runner{
 		engine:    analyzer.NewPostDownloadEngine(cfg, nil),
